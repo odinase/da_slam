@@ -1,0 +1,2 @@
+/usr/bin/ar qc libjcbb.a CMakeFiles/jcbb.dir/src/jcbb/jcbb.cpp.o CMakeFiles/jcbb.dir/src/jcbb/MarginalMocks.cpp.o CMakeFiles/jcbb.dir/src/jcbb/Hypothesis.cpp.o CMakeFiles/jcbb.dir/src/jcbb/utils.cpp.o
+/usr/bin/ranlib libjcbb.a
