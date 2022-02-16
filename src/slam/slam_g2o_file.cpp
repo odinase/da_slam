@@ -26,19 +26,9 @@ using namespace gtsam;
 //     boost::tie()
 // }
 
-template <class POSE, class POINT>
-struct Timestep
-{
-    int step;
-    slam::Odometry<POSE> odom;
-    FastVector<slam::Measurement<POINT>> measurements;
-};
-
-using Timestep2D = Timestep<Pose2, Point2>;
-using Timestep3D = Timestep<Pose3, Point3>;
 
 template <class POSE, class POINT>
-std::vector<Timestep<POSE, POINT>> convert_into_timesteps(
+std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
     vector<boost::shared_ptr<BetweenFactor<POSE>>> &odomFactors,
     vector<boost::shared_ptr<PoseToPointFactor<POSE, POINT>>> &measFactors)
 {
@@ -60,13 +50,13 @@ std::vector<Timestep<POSE, POINT>> convert_into_timesteps(
 
     size_t odoms = odomFactors.size();
     uint64_t num_timesteps = odoms + 1; // There will always be one more robot pose than odometry factors since they're all between
-    vector<Timestep<POSE, POINT>> timesteps;
+    vector<slam::Timestep<POSE, POINT>> timesteps;
     size_t curr_measurement = 0;
     size_t tot_num_measurements = measFactors.size();
     timesteps.reserve(num_timesteps);
     for (uint64_t t = 0; t < num_timesteps; t++)
     {
-        Timestep<POSE, POINT> timestep;
+        slam::Timestep<POSE, POINT> timestep;
         timestep.step = t;
         // Initialize first odom as identity, as we haven't moved yet
         if (t > 0)
@@ -104,7 +94,8 @@ int main(int argc, char **argv)
     string g2oFile = findExampleDataFile("noisyToyGraph.txt");
     bool is3D = false;
     int optimization_rate = 1; // Optimize every time
-    double ic_prob = 0.9707091134651118; // chi2.cdf(3**2, 3)
+    double ic_prob = 0.9707091134651118; // chi2.cdf(3**2, 2)
+    std::string output_file;
     // Parse user's inputs
     if (argc > 1)
     {
@@ -116,7 +107,7 @@ int main(int argc, char **argv)
         std::cout << "is3D: " << is3D << std::endl;
     }
     if (is3D) {
-        ic_prob = 0.9888910034617577; // chi2.cdf(3**2, 2)
+        ic_prob = 0.9888910034617577; // chi2.cdf(3**2, 3)
     }
     if (argc > 3)
     {
@@ -125,8 +116,13 @@ int main(int argc, char **argv)
     }
     if (argc > 4)
     {
-        ic_prob = atoi(argv[4]);
+        ic_prob = atof(argv[4]);
         std::cout << "ic prob: " << ic_prob << std::endl;
+    }
+    if (argc > 5)
+    {
+        output_file = argv[5];
+        std::cout << "output_file: " << output_file << std::endl;
     }
     
 
@@ -148,7 +144,7 @@ int main(int argc, char **argv)
     {
         gtsam::Vector pose_prior_noise = (gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished();
         pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
-        vector<Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
+        vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
         slam::SLAM3D slam_sys{};
         // double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise, const gtsam::Vector &lmk_prior_noise
         slam_sys.initialize(ic_prob, optimization_rate, pose_prior_noise);
@@ -156,13 +152,11 @@ int main(int argc, char **argv)
         for (const auto &timestep : timesteps)
         {
             start_t = std::chrono::high_resolution_clock::now();
-            slam_sys.processOdomMeasurementScan(
-                timestep.odom, timestep.measurements);
+            slam_sys.processTimestep(timestep);
             cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
             end_t = std::chrono::high_resolution_clock::now();
             double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count()*1e-9;
-            int n = timestep.step + 1;
-            avg_time = (n*avg_time + duration) / (n + 1.0);
+            avg_time = (timestep.step*avg_time + duration) / (timestep.step + 1.0);
             cout << "Duration: " << duration << " seconds\n" << "Average time one iteration: " << avg_time << " seconds\n";        
         }
         std::string path = "/home/odinase/mit/fall/vnav/vnav_final_project/src/vnav-slam-jcbb/";
@@ -172,14 +166,14 @@ int main(int argc, char **argv)
         NonlinearFactorGraph::shared_ptr graphNoKernel;
         Values::shared_ptr initial2;
         boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
-        writeG2o(*graphNoKernel, slam_sys.currentEstimates(), "/home/odinase/done_3d.g2o");
+        writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
     }
     else
     {
         gtsam::Vector pose_prior_noise = Vector3(1e-6, 1e-6, 1e-8);
         pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
         cout << "Start converting into timesteps!\n";
-        vector<Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
+        vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
         cout << "Done converting into timesteps!\n";
         slam::SLAM2D slam_sys{};
         // double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise, const gtsam::Vector &lmk_prior_noise
@@ -189,13 +183,11 @@ int main(int argc, char **argv)
         for (const auto &timestep : timesteps)
         {
             start_t = std::chrono::high_resolution_clock::now();
-            slam_sys.processOdomMeasurementScan(
-                timestep.odom, timestep.measurements);
+            slam_sys.processTimestep(timestep);
             cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
             end_t = std::chrono::high_resolution_clock::now();
             double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count()*1e-9;
-            int n = timestep.step + 1;
-            avg_time = (n*avg_time + duration) / (n + 1.0);
+            avg_time = (timestep.step*avg_time + duration) / (timestep.step + 1.0);
             cout << "Duration: " << duration << " seconds\n" << "Average time one iteration: " << avg_time << " seconds\n";
         }
         std::string path = "/home/odinase/mit/fall/vnav/vnav_final_project/src/vnav-slam-jcbb/";
@@ -205,6 +197,6 @@ int main(int argc, char **argv)
         NonlinearFactorGraph::shared_ptr graphNoKernel;
         Values::shared_ptr initial2;
         boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
-        writeG2o(*graphNoKernel, slam_sys.currentEstimates(), "/home/odinase/done_2d.g2o");
+        writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
     }
 }

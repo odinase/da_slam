@@ -119,7 +119,7 @@ namespace ml
       for (const auto &l : landmark_keys_)
       {
         POINT lmk = estimates_.at<POINT>(l);
-        if (x_pose_.range(lmk) > 3) {
+        if (x_pose_.range(lmk) > 20) {
           continue; // Landmark too far away to be relevant.
         }
         gtsam::PoseToPointFactor<POSE, POINT> factor(x_key_, l, meas, noise);

@@ -59,7 +59,7 @@ namespace slam
         // We need to initialize the graph with priors on the first pose and landmark
         void optimize();
         const gtsam::Values& currentEstimates() const { return estimates_; }
-        void processOdomMeasurementScan(const Odometry<POSE> &odom, const gtsam::FastVector<Measurement<POINT>> &measurements);
+        void processTimestep(const Timestep<POSE, POINT>& timestep);
         void initialize(double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;

@@ -1,4 +1,0 @@
-/home/odinase/prog/C++/da-slam/build/CMakeFiles/jcbb.dir
-/home/odinase/prog/C++/da-slam/build/CMakeFiles/slam_g2o_file.dir
-/home/odinase/prog/C++/da-slam/build/CMakeFiles/edit_cache.dir
-/home/odinase/prog/C++/da-slam/build/CMakeFiles/rebuild_cache.dir

@@ -1,4 +1,5 @@
 #include "slam/slam.h"
+#include "slam/types.h"
 #include "jcbb/jcbb.h"
 #include "jcbb/Hypothesis.h"
 
@@ -10,6 +11,7 @@
 #include <gtsam/nonlinear/PriorFactor.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/DoglegOptimizer.h>
+#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 
 #include <iostream>
 #include <chrono>
@@ -17,17 +19,17 @@
 namespace slam
 {
 
-  template<class POSE, class POINT>
+  template <class POSE, class POINT>
   SLAM<POSE, POINT>::SLAM()
       : latest_pose_key_(0),
         latest_landmark_key_(0)
   {
   }
 
-  template<class POSE, class POINT>
-  void SLAM<POSE, POINT>::initialize(double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise)//, const gtsam::Vector &lmk_prior_noise)
+  template <class POSE, class POINT>
+  void SLAM<POSE, POINT>::initialize(double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise) //, const gtsam::Vector &lmk_prior_noise)
   {
-  pose_prior_noise_ = gtsam::noiseModel::Diagonal::Sigmas(pose_prior_noise);
+    pose_prior_noise_ = gtsam::noiseModel::Diagonal::Sigmas(pose_prior_noise);
     // lmk_prior_noise_ = lmk_prior_noise;
     ic_prob_ = ic_prob;
     optimization_rate_ = optimization_rate;
@@ -57,29 +59,29 @@ namespace slam
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
     estimates_.insert(X(latest_pose_key_), POSE());
 
-  //   association_method_ = association_method;
-  //   std::cout << "Using association method ";
-  //   switch (association_method)
-  //   {
-  //   case AssociationMethod::JCBB:
-  //   {
-  //     std::cout << "JCBB\n";
-  //     break;
-  //   }
-  //   case AssociationMethod::ML:
-  //   {
-  //     std::cout << "ML\n";
-  //     break;
-  //   }
-  //   case AssociationMethod::KnownDataAssociation:
-  //   {
-  //     std::cout << "Known data association\n";
-  //     break;
-  //   }
-  //   }
+    //   association_method_ = association_method;
+    //   std::cout << "Using association method ";
+    //   switch (association_method)
+    //   {
+    //   case AssociationMethod::JCBB:
+    //   {
+    //     std::cout << "JCBB\n";
+    //     break;
+    //   }
+    //   case AssociationMethod::ML:
+    //   {
+    //     std::cout << "ML\n";
+    //     break;
+    //   }
+    //   case AssociationMethod::KnownDataAssociation:
+    //   {
+    //     std::cout << "Known data association\n";
+    //     break;
+    //   }
+    //   }
   }
 
-  template<class POSE, class POINT>
+  template <class POSE, class POINT>
   gtsam::FastVector<POSE> SLAM<POSE, POINT>::getTrajectory() const
   {
     gtsam::FastVector<POSE> trajectory;
@@ -90,7 +92,7 @@ namespace slam
     return trajectory;
   }
 
-  template<class POSE, class POINT>
+  template <class POSE, class POINT>
   gtsam::FastVector<POINT> SLAM<POSE, POINT>::getLandmarkPoints() const
   {
     gtsam::FastVector<POINT> landmarks;
@@ -101,11 +103,14 @@ namespace slam
     return landmarks;
   }
 
-  template<class POSE, class POINT>
-  void SLAM<POSE, POINT>::processOdomMeasurementScan(const Odometry<POSE> &odom, const gtsam::FastVector<Measurement<POINT>> &measurements)
+  template <class POSE, class POINT>
+  void SLAM<POSE, POINT>::processTimestep(const Timestep<POSE, POINT> &timestep)
   {
     static int num = 1;
-    addOdom(odom);
+    if (timestep.step > 0)
+    {
+      addOdom(timestep.odom);
+    }
 
     gtsam::Marginals marginals = gtsam::Marginals(graph_, estimates_);
 
@@ -113,6 +118,9 @@ namespace slam
     // switch (association_method_)
     // {
     // case AssociationMethod::JCBB:
+    // params.setAbsoluteErrorTol(1e-08);
+    // estimates_ =
+    //     gtsam::DoglegOptimizer(graph_, estimates_, params).optimize();
     // {
     //   jcbb::JCBB jcbb_(estimates_, marginals, measurements, meas_noise_, ic_prob_, jc_prob_);
     //   h = jcbb_.associate();
@@ -126,8 +134,8 @@ namespace slam
     // }
     // case AssociationMethod::KnownDataAssociation:
     //   gt::KnownDataAssociation gt_(
-    //     estimates_, 
-    //     marginals, 
+    //     estimates_,
+    //     marginals,
     //     measurements,
     //     meas_noise_,
     //     measured_apriltags,
@@ -136,16 +144,16 @@ namespace slam
     //   h = gt_.associate();
     // }
 
-      ml::MaximumLikelihood<POSE, POINT> ml_(estimates_, marginals, measurements, ic_prob_);
-      h = ml_.associate();
+    ml::MaximumLikelihood<POSE, POINT> ml_(estimates_, marginals, timestep.measurements, ic_prob_);
+    h = ml_.associate();
 
     const auto &assos = h.associations();
     POSE T_wb = estimates_.at<POSE>(X(latest_pose_key_));
     for (int i = 0; i < assos.size(); i++)
     {
       jcbb::Association::shared_ptr a = assos[i];
-      POINT meas = measurements[a->measurement].measurement;
-      const auto& meas_noise = measurements[a->measurement].noise;
+      POINT meas = timestep.measurements[a->measurement].measurement;
+      const auto &meas_noise = timestep.measurements[a->measurement].noise;
       POINT meas_world = T_wb * meas;
       if (a->associated())
       {
@@ -190,13 +198,18 @@ namespace slam
       return;
     }
     num = 1;
-    gtsam::DoglegParams params;
+    // gtsam::DoglegParams params;
+    // params.setAbsoluteErrorTol(1e-08);
+    // estimates_ =
+    //     gtsam::DoglegOptimizer(graph_, estimates_, params).optimize();
+
+    gtsam::GaussNewtonParams params;
     params.setAbsoluteErrorTol(1e-08);
     estimates_ =
-        gtsam::DoglegOptimizer(graph_, estimates_, params).optimize();
+        gtsam::GaussNewtonOptimizer(graph_, estimates_, params).optimize();
   }
 
-  template<class POSE, class POINT>
+  template <class POSE, class POINT>
   void SLAM<POSE, POINT>::addOdom(const Odometry<POSE> &odom)
   {
     graph_.add(gtsam::BetweenFactor<POSE>(X(latest_pose_key_), X(latest_pose_key_ + 1), odom.odom, odom.noise));
@@ -206,7 +219,7 @@ namespace slam
     incrementLatestPoseKey();
   }
 
-  template<class POSE, class POINT>
+  template <class POSE, class POINT>
   gtsam::FastVector<POINT> SLAM<POSE, POINT>::predictLandmarks() const
   {
     gtsam::KeyList landmark_keys = estimates_.filter(gtsam::Symbol::ChrTest('l')).keys();
