@@ -216,8 +216,10 @@ int main(int argc, char **argv)
     { // when run in terminal: tbb::captured_exception
         std::cout << "Optimization failed" << std::endl;
         std::cout << indetErr.what() << std::endl;
+        NonlinearFactorGraph::shared_ptr graphNoKernel;
+        Values::shared_ptr initial2;
         boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
-        estimates = initial2;
+        estimates = *initial2;
     }
     if (argc < 5)
     {
