@@ -66,6 +66,7 @@ void saveGraphErrors(const std::string &g2ofilepath, const std::string &algName,
   auto g2ofilename = g2opath.filename();
   // size_t lastindex = g2ofilename.find_last_of("."); 
   // string nameonly = g2ofilename.substr(0, lastindex); // remove extension
+  // std::cout << "Writing graph errors to " << errorSavePath << "\n";
   std::fstream stream(errorSavePath.c_str(), std::fstream::app); // append mode ::out overwrites
   std::time_t now = std::time(0);
   char* dt = ctime(&now);
@@ -85,6 +86,7 @@ void saveVector(const std::string &g2ofilepath, const std::string &saveName,
   auto g2opath = boost::filesystem::path(g2ofilepath);
   auto fname = boost::filesystem::path(saveName);
   auto savepath = g2opath.parent_path() / fname;
+  // std::cout << "Writing vector to " << savepath << "\n";
   std::fstream stream(savepath.c_str(), std::fstream::out); // write mode overwrites
   for (int i = 0; i < errors.size(); i++) {
     stream << errors[i];

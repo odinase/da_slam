@@ -64,6 +64,8 @@ namespace slam
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
         const gtsam::NonlinearFactorGraph& getGraph() const { return graph_; }
+        double error() const { return graph_.error(estimates_); }
+
         // const gtsam::FastVector<jcbb::Hypothesis> &getChosenHypotheses() const { return hypotheses_; }
         // AssociationMethod getAssociationMethod() const { return association_method_; }
     };

@@ -155,6 +155,10 @@ namespace slam
       POINT meas = timestep.measurements[a->measurement].measurement;
       const auto &meas_noise = timestep.measurements[a->measurement].noise;
       POINT meas_world = T_wb * meas;
+      // if (T_wb.range(meas_world) > 20) {
+      //   std::cout << "Measured range of " << T_wb.range(meas_world) << ", skipping\n";
+      //   continue;
+      // }
       if (a->associated())
       {
         // std::cout << "associated meas " << a->measurement << " with landmark " << gtsam::symbolIndex(*a->landmark) << "\n";
@@ -212,6 +216,10 @@ namespace slam
   template <class POSE, class POINT>
   void SLAM<POSE, POINT>::addOdom(const Odometry<POSE> &odom)
   {
+    // if (odom.odom.translation().norm() > 2) {
+    //   std::cout << "Odom translation crazy = " << odom.odom.translation().norm() << "\n";
+    //   return;
+    // }
     graph_.add(gtsam::BetweenFactor<POSE>(X(latest_pose_key_), X(latest_pose_key_ + 1), odom.odom, odom.noise));
     POSE this_pose = latest_pose_ * odom.odom;
     estimates_.insert(X(latest_pose_key_ + 1), this_pose);
