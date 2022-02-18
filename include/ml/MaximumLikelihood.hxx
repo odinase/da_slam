@@ -15,11 +15,12 @@ namespace ml
   using gtsam::symbol_shorthand::X;
 
   template<class POSE, class POINT>
-  MaximumLikelihood<POSE, POINT>::MaximumLikelihood(const gtsam::Values &estimates, const gtsam::Marginals &marginals, const gtsam::FastVector<slam::Measurement<POINT>> &measurements, double ic_prob)
+  MaximumLikelihood<POSE, POINT>::MaximumLikelihood(const gtsam::Values &estimates, const gtsam::Marginals &marginals, const gtsam::FastVector<slam::Measurement<POINT>> &measurements, double ic_prob, double range_threshold)
       : estimates_(estimates),
         marginals_(marginals),
         measurements_(measurements),
-        ic_prob_(ic_prob)
+        ic_prob_(ic_prob),
+        range_threshold_(range_threshold)
   {
     landmark_keys_ = estimates_.filter(gtsam::Symbol::ChrTest('l')).keys();
     auto poses = estimates_.filter(gtsam::Symbol::ChrTest('x'));
@@ -119,7 +120,7 @@ namespace ml
       for (const auto &l : landmark_keys_)
       {
         POINT lmk = estimates_.at<POINT>(l);
-        if (x_pose_.range(lmk) > 20) {
+        if (x_pose_.range(lmk) > range_threshold_) {
           continue; // Landmark too far away to be relevant.
         }
         gtsam::PoseToPointFactor<POSE, POINT> factor(x_key_, l, meas, noise);

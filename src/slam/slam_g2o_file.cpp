@@ -92,9 +92,9 @@ int main(int argc, char **argv)
     // default
     string g2oFile = findExampleDataFile("noisyToyGraph.txt");
     bool is3D = false;
-    int optimization_rate = 1;           // Optimize every time
-    double ic_prob = 0.9707091134651118; // chi2.cdf(3**2, 2)
+    double ic_prob = 1-0.9707091134651118; // chi2.cdf(3**2, 2)
     std::string output_file;
+    double range_threshold = 1e9;
     // Parse user's inputs
     if (argc > 1)
     {
@@ -111,8 +111,8 @@ int main(int argc, char **argv)
     }
     if (argc > 3)
     {
-        optimization_rate = atoi(argv[3]);
-        std::cout << "optimization rate: " << optimization_rate << std::endl;
+        range_threshold = atof(argv[3]);
+        std::cout << "range_threshold: " << range_threshold << std::endl;
     }
     if (argc > 4)
     {
@@ -150,8 +150,7 @@ int main(int argc, char **argv)
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::SLAM3D slam_sys{};
-            // double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise, const gtsam::Vector &lmk_prior_noise
-            slam_sys.initialize(ic_prob, optimization_rate, pose_prior_noise);
+            slam_sys.initialize(ic_prob, pose_prior_noise, range_threshold);
             int tot_timesteps = timesteps.size();
             for (const auto &timestep : timesteps)
             {
@@ -160,17 +159,13 @@ int main(int argc, char **argv)
                 end_t = std::chrono::high_resolution_clock::now();
                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
                 avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
-                // cout << "Duration: " << duration << " seconds\n"
-                //      << "Average time one iteration: " << avg_time << " seconds\n";
-                // cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
+                cout << "Duration: " << duration << " seconds\n"
+                     << "Average time one iteration: " << avg_time << " seconds\n";
+                cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
                 total_time += duration;
                 final_error = slam_sys.error();
                 estimates = slam_sys.currentEstimates();
             }
-            // std::string path = "/home/odinase/mit/fall/vnav/vnav_final_project/src/vnav-slam-jcbb/";
-            // ofstream os(path + "/graph.dot");
-            // slam_sys.getGraph().saveGraph(os, slam_sys.currentEstimates());
-            // os.close();
             NonlinearFactorGraph::shared_ptr graphNoKernel;
             Values::shared_ptr initial2;
             boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
@@ -184,8 +179,7 @@ int main(int argc, char **argv)
             vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
             cout << "Done converting into timesteps!\n";
             slam::SLAM2D slam_sys{};
-            // double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise, const gtsam::Vector &lmk_prior_noise
-            slam_sys.initialize(ic_prob, optimization_rate, pose_prior_noise);
+            slam_sys.initialize(ic_prob, pose_prior_noise, range_threshold);
             cout << "SLAM system initialized!\n";
             int tot_timesteps = timesteps.size();
             for (const auto &timestep : timesteps)
@@ -202,10 +196,6 @@ int main(int argc, char **argv)
                 final_error = slam_sys.error();
                 estimates = slam_sys.currentEstimates();
             }
-            // std::string path = "/home/odinase/mit/fall/vnav/vnav_final_project/src/vnav-slam-jcbb/";
-            // ofstream os(path + "/graph.dot");
-            // slam_sys.getGraph().saveGraph(os, slam_sys.currentEstimates());
-            // os.close();
             NonlinearFactorGraph::shared_ptr graphNoKernel;
             Values::shared_ptr initial2;
             boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);

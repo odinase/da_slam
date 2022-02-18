@@ -33,9 +33,10 @@ private:
         gtsam::Key x_key_;
         gtsam::KeyList landmark_keys_;
         double ic_prob_;
+        double range_threshold_;
 
 public:
-        MaximumLikelihood(const gtsam::Values &estimates, const gtsam::Marginals &marginals_, const gtsam::FastVector<slam::Measurement<POINT>> &measurements, double ic_prob);
+        MaximumLikelihood(const gtsam::Values &estimates, const gtsam::Marginals &marginals_, const gtsam::FastVector<slam::Measurement<POINT>> &measurements, double ic_prob, double range_threshold=1e9);
         double joint_compatability(const Hypothesis &h) const;
         double individual_compatability(const Association &a) const;
         Hypothesis associate() const;

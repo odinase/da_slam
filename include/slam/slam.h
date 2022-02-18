@@ -49,13 +49,8 @@ namespace slam
         void addOdom(const Odometry<POSE> &odom);
         gtsam::FastVector<POINT> predictLandmarks() const;
 
-        // For keeping track internally of associated landmarks and apriltags
-        // std::unordered_map<int, gtsam::Key> apriltag_id_lmk_;
-
-        int optimization_rate_;
         double ic_prob_;
-
-        // AssociationMethod association_method_;
+        double range_threshold_;
 
     public:
         SLAM();
@@ -64,7 +59,7 @@ namespace slam
         void optimize();
         const gtsam::Values& currentEstimates() const { return estimates_; }
         void processTimestep(const Timestep<POSE, POINT>& timestep);
-        void initialize(double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise); //, const gtsam::Vector &lmk_prior_noise);
+        void initialize(double ic_prob, const gtsam::Vector &pose_prior_noise, double range_threshold); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
         const gtsam::NonlinearFactorGraph& getGraph() const { return smoother_.getFactors(); }
