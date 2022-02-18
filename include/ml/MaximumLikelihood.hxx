@@ -112,6 +112,7 @@ namespace ml
     for (int i = 0; i < measurements_.size(); i++)
     {
       const auto &meas = measurements_[i].measurement;
+      POINT meas_world = x_pose_ * meas;
       const auto& noise = measurements_[i].noise;
 
       double lowest_nis = std::numeric_limits<double>::infinity();
@@ -120,7 +121,7 @@ namespace ml
       for (const auto &l : landmark_keys_)
       {
         POINT lmk = estimates_.at<POINT>(l);
-        if (x_pose_.range(lmk) > range_threshold_) {
+        if ((meas_world - lmk).norm() > range_threshold_) {
           continue; // Landmark too far away to be relevant.
         }
         gtsam::PoseToPointFactor<POSE, POINT> factor(x_key_, l, meas, noise);

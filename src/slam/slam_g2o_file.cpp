@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     }
     if (is3D)
     {
-        ic_prob = 0.9888910034617577; // chi2.cdf(3**2, 3)
+        ic_prob = 1-0.9888910034617577; // chi2.cdf(3**2, 3)
     }
     if (argc > 3)
     {
