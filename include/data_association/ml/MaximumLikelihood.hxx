@@ -30,85 +30,13 @@ namespace ml
   }
 
   template<class POSE, class POINT>
-  double MaximumLikelihood<POSE, POINT>::joint_compatability(const Hypothesis &h) const
-  {
-    int N = h.num_associations();
-    int n = POSE::dimension; // Pose dimension
-    int m = POINT::RowsAtCompileTime; // Landmark dimension
-    int d = POINT::RowsAtCompileTime; // Measurement dimension
-
-    gtsam::KeyVector joint_states;
-    joint_states.push_back(x_key_);
-    int num_associated_meas_to_lmk = 0;
-    for (const auto &asso : h.associations())
-    {
-      if (asso->associated())
-      {
-        num_associated_meas_to_lmk++;
-        joint_states.push_back(*asso->landmark);
-      }
-    }
-
-    Eigen::MatrixXd Pjoint = marginals_.jointMarginalCovariance(joint_states).fullMatrix();
-
-    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(num_associated_meas_to_lmk * d, n + num_associated_meas_to_lmk * m);
-    Eigen::MatrixXd R = Eigen::MatrixXd::Zero(num_associated_meas_to_lmk * d, num_associated_meas_to_lmk * d);
-
-    Eigen::VectorXd innov(N * d);
-    int k = 0, j = 0;
-
-    for (const auto &a : h.associations())
-    {
-      if (a->associated())
-      {
-        innov.segment(k, d) = a->error;
-        H.block(k, 0, d, n) = a->Hx;
-        H.block(k, n + j, d, m) = a->Hl;
-
-        // Adding R might be done more cleverly
-        const auto& meas_noise = measurements_[a->measurement].noise;
-        R.block(k, k, d, d) = meas_noise->sigmas().array().square().matrix().asDiagonal();
-
-        k += d;
-        j += m;
-      }
-    }
-
-    Eigen::MatrixXd Sjoint = H * Pjoint * H.transpose() + R;
-
-    double nis = innov.transpose() * Sjoint.llt().solve(innov);
-    return nis;
-  }
-
-  template<class POSE, class POINT>
-  double MaximumLikelihood<POSE, POINT>::individual_compatability(const Association &a) const
-  {
-    // Should never happen...
-    if (!a.associated())
-    {
-      return std::numeric_limits<double>::infinity();
-    }
-    Eigen::VectorXd innov = a.error;
-    Eigen::MatrixXd P = marginals_.jointMarginalCovariance(gtsam::KeyVector{{x_key_, *a.landmark}}).fullMatrix();
-    // TODO: Fix here later
-    int rows = a.Hx.rows();
-    int cols = a.Hx.cols() + a.Hl.cols();
-    Eigen::MatrixXd H(rows, cols);
-    H << a.Hx, a.Hl;
-
-    const auto& meas_noise = measurements_[a.measurement].noise;
-    Eigen::MatrixXd R = meas_noise->sigmas().array().square().matrix().asDiagonal();
-    Eigen::MatrixXd S = H * P * H.transpose() + R;
-
-    return innov.transpose() * S.llt().solve(innov);
-  }
-
-  template<class POSE, class POINT>
   Hypothesis MaximumLikelihood<POSE, POINT>::associate() const
   {
     // First loop over all measurements, and find the lowest Mahalanobis distance
     gtsam::FastMap<gtsam::Key, gtsam::FastVector<std::pair<int, double>>> lmk_measurement_assos;
     gtsam::Matrix Hx, Hl;
+    double inv = jcbb::chi2inv(1 - ic_prob_, POINT::RowsAtCompileTime);
+
     for (int i = 0; i < measurements_.size(); i++)
     {
       const auto &meas = measurements_[i].measurement;
@@ -128,9 +56,7 @@ namespace ml
         gtsam::Vector error = factor.evaluateError(x_pose_, lmk, Hx, Hl);
         Association a(i, l, Hx, Hl, error);
         double nis = individual_compatability(a);
-
         // TODO: Refactor out things not JCBB from jcbb
-        double inv = jcbb::chi2inv(1 - ic_prob_, POINT::RowsAtCompileTime);
         // Individually compatible?
         if (nis < inv)
         {
@@ -150,7 +76,7 @@ namespace ml
     }
 
     // Loop over all landmarks with measurement associated with it and pick put the best one by pruning out all measurements except the best one in terms of Mahalanobis distance.
-    Hypothesis h = Hypothesis::empty_hypothesis();
+    hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
     for (const auto &[l, ms] : lmk_measurement_assos)
     {
       auto p = std::min_element(ms.begin(), ms.end(), [](const auto &p1, const auto &p2)

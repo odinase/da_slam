@@ -10,7 +10,8 @@
 #include <vector>
 
 #include "slam/types.h"
-#include "jcbb/Hypothesis.h"
+#include "data_association/Hypothesis.h"
+#include ""
 
 namespace slam
 {
@@ -37,7 +38,8 @@ namespace slam
         gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_;
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
 
-        // gtsam::FastVector<jcbb::Hypothesis> hypotheses_;
+
+
 
         unsigned long int latest_pose_key_;
         POSE latest_pose_;
