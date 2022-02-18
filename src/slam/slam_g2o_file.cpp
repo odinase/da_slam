@@ -11,7 +11,7 @@
 #include <tuple>
 #include <algorithm>
 
-#include <glog/logging.h>
+// #include <glog/logging.h>
 
 // #include "slam/slam_g2o_file.h"
 #include "slam/utils_g2o.h"
@@ -86,9 +86,9 @@ std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
 
 int main(int argc, char **argv)
 {
-    google::InitGoogleLogging(argv[0]);
-    google::ParseCommandLineFlags(&argc, &argv, true);
-    google::InstallFailureSignalHandler();
+    // google::InitGoogleLogging(argv[0]);
+    // google::ParseCommandLineFlags(&argc, &argv, true);
+    // google::InstallFailureSignalHandler();
     // default
     string g2oFile = findExampleDataFile("noisyToyGraph.txt");
     bool is3D = false;
@@ -206,6 +206,10 @@ int main(int argc, char **argv)
     { // when run in terminal: tbb::captured_exception
         std::cout << "Optimization failed" << std::endl;
         std::cout << indetErr.what() << std::endl;
+        if (argc > 5) {
+            string other_msg = "None";
+            saveException(output_file, std::string("ExceptionML.txt"), indetErr.what(), other_msg);
+        }
         NonlinearFactorGraph::shared_ptr graphNoKernel;
         Values::shared_ptr initial2;
         boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);

@@ -11,7 +11,7 @@ find_package(Eigen3 REQUIRED)
 set(EIGEN3_INCLUDE_DIR "/usr/local/include/gtsam/3rdparty/Eigen")
 include_directories(${EIGEN3_INCLUDE_DIR})
 
-find_package (glog 0.6.0 REQUIRED)
+# find_package (glog 0.6.0 REQUIRED)
 
 include_directories(
   eigen3
@@ -89,7 +89,7 @@ target_link_libraries(slam_g2o_file
   gtsam
   gtsam_unstable
   jcbb
-  glog::glog
+  # glog::glog
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
