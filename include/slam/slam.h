@@ -3,6 +3,7 @@
 
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/geometry/Pose3.h>
@@ -29,7 +30,10 @@ namespace slam
     {
     private:
         gtsam::NonlinearFactorGraph graph_;
+        gtsam::IncrementalFixedLagSmoother smoother_;
+
         gtsam::Values estimates_;
+        gtsam::Values initial_estimates_;
         gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_;
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
 
@@ -63,8 +67,8 @@ namespace slam
         void initialize(double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
-        const gtsam::NonlinearFactorGraph& getGraph() const { return graph_; }
-        double error() const { return graph_.error(estimates_); }
+        const gtsam::NonlinearFactorGraph& getGraph() const { return smoother_.getFactors(); }
+        double error() const { return smoother_.getFactors().error(estimates_); }
 
         // const gtsam::FastVector<jcbb::Hypothesis> &getChosenHypotheses() const { return hypotheses_; }
         // AssociationMethod getAssociationMethod() const { return association_method_; }

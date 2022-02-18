@@ -87,6 +87,7 @@ add_executable(slam_g2o_file
 target_link_libraries(slam_g2o_file
   Eigen3::Eigen
   gtsam
+  gtsam_unstable
   jcbb
   glog::glog
 )

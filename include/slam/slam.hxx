@@ -34,6 +34,16 @@ namespace slam
     ic_prob_ = ic_prob;
     optimization_rate_ = optimization_rate;
 
+    // Run with Gauss Newton (should be default)
+    gtsam::ISAM2Params params;
+    params.setOptimizationParams(gtsam::ISAM2GaussNewtonParams());
+    double smoother_lag = 0.0;
+    
+    smoother_ = gtsam::IncrementalFixedLagSmoother(smoother_lag, params);
+
+    // gtsam::ISAM2Params params;
+    // params.
+
     // for (int i = 0; i < 6; i++)
     // {
     //   if (i < 3)
@@ -57,7 +67,13 @@ namespace slam
 
     // Add prior on first pose
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
-    estimates_.insert(X(latest_pose_key_), POSE());
+    initial_estimates_.insert(X(latest_pose_key_), POSE());
+
+    smoother_.update(graph_, initial_estimates_);
+
+    estimates_ = smoother_.calculateEstimate();
+    graph_.resize(0);
+    initial_estimates_.clear();
 
     //   association_method_ = association_method;
     //   std::cout << "Using association method ";
@@ -112,7 +128,10 @@ namespace slam
       addOdom(timestep.odom);
     }
 
-    gtsam::Marginals marginals = gtsam::Marginals(graph_, estimates_);
+    gtsam::NonlinearFactorGraph full_graph = smoother_.getFactors();
+    gtsam::Values estimates = smoother_.calculateEstimate(); // Not necessary?
+
+    gtsam::Marginals marginals = gtsam::Marginals(full_graph, estimates);
 
     jcbb::Hypothesis h = jcbb::Hypothesis::empty_hypothesis();
     // switch (association_method_)
@@ -144,11 +163,11 @@ namespace slam
     //   h = gt_.associate();
     // }
 
-    ml::MaximumLikelihood<POSE, POINT> ml_(estimates_, marginals, timestep.measurements, ic_prob_);
+    ml::MaximumLikelihood<POSE, POINT> ml_(estimates, marginals, timestep.measurements, ic_prob_);
     h = ml_.associate();
 
     const auto &assos = h.associations();
-    POSE T_wb = estimates_.at<POSE>(X(latest_pose_key_));
+    POSE T_wb = estimates.at<POSE>(X(latest_pose_key_));
     for (int i = 0; i < assos.size(); i++)
     {
       jcbb::Association::shared_ptr a = assos[i];
@@ -173,7 +192,7 @@ namespace slam
       else
       {
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), L(latest_landmark_key_), meas, meas_noise));
-        estimates_.insert(L(latest_landmark_key_), meas_world);
+        initial_estimates_.insert(L(latest_landmark_key_), meas_world);
         // std::cout << "Added " << gtsam::symbolChr(L(latest_landmark_key_)) << gtsam::symbolIndex(L(latest_landmark_key_)) << "\n";
         // apriltag_lmk_assos_[apriltag_id].push_back(L(latest_landmark_key_));
         // // Only do this if we are checking how well we correctly associate landmarks
@@ -196,21 +215,28 @@ namespace slam
     //   hypotheses_.push_back(h);
     // }
 
+    smoother_.update(graph_, initial_estimates_);
+    estimates_ = smoother_.calculateEstimate();
+
+    graph_.resize(0);
+    initial_estimates_.clear();
     if (num % optimization_rate_ != 0)
     {
       num++;
       return;
     }
-    num = 1;
+    // num = 1;
     // gtsam::DoglegParams params;
     // params.setAbsoluteErrorTol(1e-08);
     // estimates_ =
     //     gtsam::DoglegOptimizer(graph_, estimates_, params).optimize();
 
-    gtsam::GaussNewtonParams params;
-    params.setAbsoluteErrorTol(1e-08);
-    estimates_ =
-        gtsam::GaussNewtonOptimizer(graph_, estimates_, params).optimize();
+
+
+    // gtsam::GaussNewtonParams params;
+    // params.setAbsoluteErrorTol(1e-08);
+    // estimates_ =
+    //     gtsam::GaussNewtonOptimizer(graph_, estimates_, params).optimize();
   }
 
   template <class POSE, class POINT>
@@ -222,8 +248,13 @@ namespace slam
     // }
     graph_.add(gtsam::BetweenFactor<POSE>(X(latest_pose_key_), X(latest_pose_key_ + 1), odom.odom, odom.noise));
     POSE this_pose = latest_pose_ * odom.odom;
-    estimates_.insert(X(latest_pose_key_ + 1), this_pose);
+    initial_estimates_.insert(X(latest_pose_key_ + 1), this_pose);
     latest_pose_ = this_pose;
+    smoother_.update(graph_, initial_estimates_);
+
+    graph_.resize(0);
+    initial_estimates_.clear();
+    
     incrementLatestPoseKey();
   }
 
