@@ -17,36 +17,34 @@
 #include "data_association/Hypothesis.h"
 #include "data_association/DataAssociation.h"
 
-namespace data_association
+namespace da
 {
         namespace ml
         {
 
-                using jcbb::Association;
-                using jcbb::Hypothesis;
+                using hypothesis::Association;
+                using hypothesis::Hypothesis;
 
                 template <class POSE, class POINT>
-                class MaximumLikelihood : public DataAssociation
+                class MaximumLikelihood : public DataAssociation<slam::Measurement<POINT>>
                 {
 
                 private:
-                        const gtsam::Values &estimates_;
-                        const gtsam::Marginals &marginals_;
-                        const gtsam::FastVector<slam::Measurement<POINT>> &measurements_;
-                        POSE x_pose_;
-                        gtsam::Key x_key_;
-                        gtsam::KeyList landmark_keys_;
                         double ic_prob_;
                         double range_threshold_;
 
                 public:
-                        MaximumLikelihood(const gtsam::Values &estimates, const gtsam::Marginals &marginals_, const gtsam::FastVector<slam::Measurement<POINT>> &measurements, double ic_prob, double range_threshold = 1e9);
-                        virtual hypothesis::Hypothesis associate() const override;
+                        MaximumLikelihood(double ic_prob, double range_threshold = 1e9);
+                        virtual hypothesis::Hypothesis associate(
+                            const gtsam::Values &estimates,
+                            const gtsam::Marginals &marginals,
+                            const gtsam::FastVector<slam::Measurement<POINT>> &measurements
+                        ) const override;
                 };
 
         } // namespace ml
-} // namespace data_association
+} // namespace da
 
-#include "ml/MaximumLikelihood.hxx"
+#include "data_association/ml/MaximumLikelihood.hxx"
 
 #endif // MAXIMUM_LIKELIHOOD_H

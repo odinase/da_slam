@@ -11,20 +11,13 @@
 
 #include "slam/types.h"
 #include "data_association/Hypothesis.h"
-#include ""
+#include "data_association/DataAssociation.h"
 
 namespace slam
 {
 
     using gtsam::symbol_shorthand::L;
     using gtsam::symbol_shorthand::X;
-
-    enum class AssociationMethod
-    {
-        JCBB,
-        ML,
-        KnownDataAssociation
-    };
 
     template <class POSE, class POINT>
     class SLAM
@@ -38,8 +31,7 @@ namespace slam
         gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_;
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
 
-
-
+        da::DataAssociation<Measurement<POINT>>::shared_ptr data_association_;
 
         unsigned long int latest_pose_key_;
         POSE latest_pose_;

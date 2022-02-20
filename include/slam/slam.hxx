@@ -1,10 +1,6 @@
 #include "slam/slam.h"
 #include "slam/types.h"
-#include "jcbb/jcbb.h"
-#include "jcbb/Hypothesis.h"
-
-#include "ml/MaximumLikelihood.h"
-#include "gt/KnownDataAssociation.h"
+#include "data_association/Hypothesis.h"
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/slam/BetweenFactor.h>
@@ -82,12 +78,11 @@ namespace slam
     }
 
     gtsam::NonlinearFactorGraph full_graph = smoother_.getFactors();
-    gtsam::Values estimates = smoother_.calculateEstimate(); // Not necessary?
+    gtsam::Values estimates = smoother_.calculateEstimate();
 
     gtsam::Marginals marginals = gtsam::Marginals(full_graph, estimates);
 
-    ml::MaximumLikelihood<POSE, POINT> ml_(estimates, marginals, timestep.measurements, ic_prob_, range_threshold_);
-    jcbb::Hypothesis h = ml_.associate();
+    hypothesis::Hypothesis h = data_association_->associate(estimates, marginals, timestep.measurements);
 
     const auto &assos = h.associations();
     POSE T_wb = estimates.at<POSE>(X(latest_pose_key_));

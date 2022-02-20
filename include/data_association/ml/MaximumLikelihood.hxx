@@ -1,4 +1,3 @@
-#include "ml/MaximumLikelihood.h"
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
@@ -9,29 +8,32 @@
 #include <memory>
 #include <slam/types.h>
 
+namespace da {
+
 namespace ml
 {
   using gtsam::symbol_shorthand::L;
   using gtsam::symbol_shorthand::X;
 
   template<class POSE, class POINT>
-  MaximumLikelihood<POSE, POINT>::MaximumLikelihood(const gtsam::Values &estimates, const gtsam::Marginals &marginals, const gtsam::FastVector<slam::Measurement<POINT>> &measurements, double ic_prob, double range_threshold)
-      : estimates_(estimates),
-        marginals_(marginals),
-        measurements_(measurements),
-        ic_prob_(ic_prob),
+  MaximumLikelihood<POSE, POINT>::MaximumLikelihood(double ic_prob, double range_threshold)
+      : ic_prob_(ic_prob),
         range_threshold_(range_threshold)
   {
-    landmark_keys_ = estimates_.filter(gtsam::Symbol::ChrTest('l')).keys();
-    auto poses = estimates_.filter(gtsam::Symbol::ChrTest('x'));
-    int last_pose = poses.size() - 1; // Assuming first pose is 0
-    x_key_ = X(last_pose);
-    x_pose_ = estimates.at<POSE>(x_key_);
   }
 
   template<class POSE, class POINT>
-  Hypothesis MaximumLikelihood<POSE, POINT>::associate() const
+  Hypothesis MaximumLikelihood<POSE, POINT>::associate(
+            const gtsam::Values &estimates,
+            const gtsam::Marginals &marginals,
+            const gtsam::FastVector<slam::Measurement<POINT>> &measurements) const override
   {
+    gtsam::KeyList landmark_keys = estimates.filter(gtsam::Symbol::ChrTest('l')).keys();
+    auto poses = estimates_.filter(gtsam::Symbol::ChrTest('x'));
+    int last_pose = poses.size() - 1; // Assuming first pose is 0
+    gtsam::Key x_key = X(last_pose);
+    POSE x_pose = estimates.at<POSE>(x_key);
+
     // First loop over all measurements, and find the lowest Mahalanobis distance
     gtsam::FastMap<gtsam::Key, gtsam::FastVector<std::pair<int, double>>> lmk_measurement_assos;
     gtsam::Matrix Hx, Hl;
@@ -40,22 +42,27 @@ namespace ml
     for (int i = 0; i < measurements_.size(); i++)
     {
       const auto &meas = measurements_[i].measurement;
-      POINT meas_world = x_pose_ * meas;
+      POINT meas_world = x_pose * meas;
       const auto& noise = measurements_[i].noise;
 
       double lowest_nis = std::numeric_limits<double>::infinity();
 
       std::pair<int, double> smallest_innovation(-1, 0.0);
-      for (const auto &l : landmark_keys_)
+      for (const auto &l : landmark_keys)
       {
         POINT lmk = estimates_.at<POINT>(l);
         if ((meas_world - lmk).norm() > range_threshold_) {
           continue; // Landmark too far away to be relevant.
         }
-        gtsam::PoseToPointFactor<POSE, POINT> factor(x_key_, l, meas, noise);
-        gtsam::Vector error = factor.evaluateError(x_pose_, lmk, Hx, Hl);
-        Association a(i, l, Hx, Hl, error);
-        double nis = individual_compatability(a);
+        gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
+        gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
+        hypothesis::Association a(i, l, Hx, Hl, error);
+        double nis = individual_compatability(a, 
+            //         gtsam::Key x_key,
+            // const gtsam::Marginals& marginals,
+            // const gtsam::FastVector<MEASUREMENT>& measurements
+            x_key, marginals, measurements
+        );
         // TODO: Refactor out things not JCBB from jcbb
         // Individually compatible?
         if (nis < inv)
@@ -85,8 +92,8 @@ namespace ml
       POINT lmk = estimates_.at<POINT>(l);
       const auto &meas = measurements_[p->first].measurement;
       const auto &noise = measurements_[p->first].noise;
-      gtsam::PoseToPointFactor<POSE, POINT> factor(x_key_, l, meas, noise);
-      gtsam::Vector error = factor.evaluateError(x_pose_, lmk, Hx, Hl);
+      gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
+      gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
       Association::shared_ptr a = std::make_shared<Association>(p->first, l, Hx, Hl, error);
       h.extend(a);
     }
@@ -98,3 +105,4 @@ namespace ml
     return h;
   }
 } // namespace ml
+} // namespace da
