@@ -40,19 +40,6 @@ target_link_libraries(hypothesis
 #   gtsam
 # )
 
-# add_library(ml
-#   src/ml/MaximumLikelihood.cpp
-#   # src/jcbb/jcbb.cpp
-#   src/jcbb/Hypothesis.cpp
-# )
-
-# target_link_libraries(ml
-#   # ${catkin_LIBRARIES}
-#   Eigen3::Eigen
-#   gtsam
-#   )
-
-
 #   add_library(gt
 #   src/gt/KnownDataAssociation.cpp
 #   src/jcbb/Hypothesis.cpp
@@ -89,6 +76,11 @@ target_link_libraries(hypothesis
 #   glog::glog
 # )
 
+option(HYPOTHESIS_QUALITY "Compute NIS for joint hypothesis for comparision of hypothesis quality" OFF)
+
+if (HYPOTHESIS_QUALITY)
+  add_definitions(-DHYPOTHESIS_QUALITY)
+endif()
 
 add_executable(slam_g2o_file
   src/slam/slam_g2o_file.cpp

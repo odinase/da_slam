@@ -16,8 +16,8 @@ namespace da
     using gtsam::symbol_shorthand::X;
 
     template <class POSE, class POINT>
-    MaximumLikelihood<POSE, POINT>::MaximumLikelihood(double ic_prob, double range_threshold)
-        : ic_prob_(ic_prob),
+    MaximumLikelihood<POSE, POINT>::MaximumLikelihood(double sigmas, double range_threshold)
+        : mh_threshold_(sigmas*sigmas),
           range_threshold_(range_threshold)
     {
     }
@@ -37,7 +37,6 @@ namespace da
       // First loop over all measurements, and find the lowest Mahalanobis distance
       gtsam::FastMap<gtsam::Key, gtsam::FastVector<std::pair<int, double>>> lmk_measurement_assos;
       gtsam::Matrix Hx, Hl;
-      double inv = chi2inv(1 - ic_prob_, POINT::RowsAtCompileTime);
 
       for (int i = 0; i < measurements.size(); i++)
       {
@@ -61,7 +60,7 @@ namespace da
           double nis = individual_compatability(a, x_key, marginals, measurements);
 
           // Individually compatible?
-          if (nis < inv)
+          if (nis < mh_threshold_)
           {
             // Better association than already found?
             if (nis < lowest_nis)
@@ -95,8 +94,12 @@ namespace da
       }
       h.fill_with_unassociated_measurements(measurements.size());
 
+      // This computation is not needed right now
+      #ifdef HYPOTHESIS_QUALITY
+      std::cout << "Computing joint NIS\n";
       double nis = joint_compatability<POSE::dimension, POINT::RowsAtCompileTime, POINT::RowsAtCompileTime>(h, x_key, marginals, measurements);
       h.set_nis(nis);
+      #endif
 
       return h;
     }

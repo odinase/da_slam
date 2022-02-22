@@ -93,7 +93,7 @@ int main(int argc, char **argv)
     // default
     string g2oFile = findExampleDataFile("noisyToyGraph.txt");
     bool is3D = false;
-    double ic_prob = 1-0.9707091134651118; // chi2.cdf(3**2, 2)
+    double sigmas = 3.0;
     std::string output_file;
     double range_threshold = 1e9;
     // Parse user's inputs
@@ -106,10 +106,6 @@ int main(int argc, char **argv)
         is3D = atoi(argv[2]);
         std::cout << "is3D: " << is3D << std::endl;
     }
-    if (is3D)
-    {
-        ic_prob = 1-0.9888910034617577; // chi2.cdf(3**2, 3)
-    }
     if (argc > 3)
     {
         range_threshold = atof(argv[3]);
@@ -117,8 +113,8 @@ int main(int argc, char **argv)
     }
     if (argc > 4)
     {
-        ic_prob = atof(argv[4]);
-        std::cout << "ic prob: " << ic_prob << std::endl;
+        sigmas = atof(argv[4]);
+        std::cout << "sigmas: " << sigmas << std::endl;
     }
     if (argc > 5)
     {
@@ -151,7 +147,7 @@ int main(int argc, char **argv)
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::SLAM3D slam_sys{};
-            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(ic_prob, range_threshold);
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
             slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
             for (const auto &timestep : timesteps)
@@ -181,7 +177,7 @@ int main(int argc, char **argv)
             vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
             cout << "Done converting into timesteps!\n";
             slam::SLAM2D slam_sys{};
-            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(ic_prob, range_threshold);
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
             slam_sys.initialize(pose_prior_noise, data_asso);
             cout << "SLAM system initialized!\n";
             int tot_timesteps = timesteps.size();

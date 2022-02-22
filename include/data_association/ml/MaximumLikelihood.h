@@ -30,12 +30,12 @@ namespace da
     {
 
     private:
-      double ic_prob_;
+      double mh_threshold_;
       double range_threshold_;
 
     public:
       // typedef std::shared_ptr<MaximumLikelihood> shared_ptr;
-      MaximumLikelihood(double ic_prob, double range_threshold = 1e9);
+      MaximumLikelihood(double sigmas, double range_threshold = 1e9);
       virtual hypothesis::Hypothesis associate(
           const gtsam::Values &estimates,
           const gtsam::Marginals &marginals,
