@@ -23,11 +23,10 @@ namespace slam
   }
 
   template <class POSE, class POINT>
-  void SLAM<POSE, POINT>::initialize(double ic_prob, const gtsam::Vector &pose_prior_noise, double range_threshold) //, const gtsam::Vector &lmk_prior_noise)
+  void SLAM<POSE, POINT>::initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association)
   {
     pose_prior_noise_ = gtsam::noiseModel::Diagonal::Sigmas(pose_prior_noise);
-    ic_prob_ = ic_prob;
-    range_threshold_ = range_threshold;
+    data_association_ = data_association;
 
     // Run with Gauss Newton (should be default)
     gtsam::ISAM2Params params;
@@ -82,13 +81,13 @@ namespace slam
 
     gtsam::Marginals marginals = gtsam::Marginals(full_graph, estimates);
 
-    hypothesis::Hypothesis h = data_association_->associate(estimates, marginals, timestep.measurements);
+    da::hypothesis::Hypothesis h = data_association_->associate(estimates, marginals, timestep.measurements);
 
     const auto &assos = h.associations();
     POSE T_wb = estimates.at<POSE>(X(latest_pose_key_));
     for (int i = 0; i < assos.size(); i++)
     {
-      jcbb::Association::shared_ptr a = assos[i];
+      da::hypothesis::Association::shared_ptr a = assos[i];
       POINT meas = timestep.measurements[a->measurement].measurement;
       const auto &meas_noise = timestep.measurements[a->measurement].noise;
       POINT meas_world = T_wb * meas;

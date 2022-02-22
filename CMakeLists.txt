@@ -18,17 +18,27 @@ include_directories(
   include
 )
 
-add_library(jcbb
-  src/jcbb/jcbb.cpp
-  src/jcbb/MarginalMocks.cpp
-  src/jcbb/Hypothesis.cpp
-  src/jcbb/utils.cpp
+add_library(hypothesis
+  # src/jcbb/MarginalMocks.cpp
+  src/data_association/Hypothesis.cpp
 )
 
-target_link_libraries(jcbb
+target_link_libraries(hypothesis
   Eigen3::Eigen
   gtsam
 )
+
+# add_library(jcbb
+#   src/jcbb/jcbb.cpp
+#   src/jcbb/MarginalMocks.cpp
+#   src/jcbb/Hypothesis.cpp
+#   src/jcbb/utils.cpp
+# )
+
+# target_link_libraries(jcbb
+#   Eigen3::Eigen
+#   gtsam
+# )
 
 # add_library(ml
 #   src/ml/MaximumLikelihood.cpp
@@ -88,7 +98,8 @@ target_link_libraries(slam_g2o_file
   Eigen3::Eigen
   gtsam
   gtsam_unstable
-  jcbb
+  hypothesis
+  # jcbb
   glog::glog
 )
 

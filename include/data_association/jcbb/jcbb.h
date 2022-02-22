@@ -20,7 +20,6 @@
 namespace jcbb
 {    template <class T>
     using FastMinHeap = std::priority_queue<T, gtsam::FastVector<T>, std::greater<T>>;
-    double chi2inv(double p, unsigned int dim);
 
     class JCBB
     {

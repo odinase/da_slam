@@ -34,13 +34,17 @@ namespace da
                         double range_threshold_;
 
                 public:
+                        // typedef std::shared_ptr<MaximumLikelihood> shared_ptr;
                         MaximumLikelihood(double ic_prob, double range_threshold = 1e9);
                         virtual hypothesis::Hypothesis associate(
                             const gtsam::Values &estimates,
                             const gtsam::Marginals &marginals,
                             const gtsam::FastVector<slam::Measurement<POINT>> &measurements
-                        ) const override;
+                        ) override;
                 };
+
+    using MaximumLikelihood2D = MaximumLikelihood<gtsam::Pose2, gtsam::Point2>;
+    using MaximumLikelihood3D = MaximumLikelihood<gtsam::Pose3, gtsam::Point3>;
 
         } // namespace ml
 } // namespace da

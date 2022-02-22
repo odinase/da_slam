@@ -31,7 +31,7 @@ namespace slam
         gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_;
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
 
-        da::DataAssociation<Measurement<POINT>>::shared_ptr data_association_;
+        std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association_;
 
         unsigned long int latest_pose_key_;
         POSE latest_pose_;
@@ -43,9 +43,6 @@ namespace slam
         void addOdom(const Odometry<POSE> &odom);
         gtsam::FastVector<POINT> predictLandmarks() const;
 
-        double ic_prob_;
-        double range_threshold_;
-
     public:
         SLAM();
 
@@ -53,7 +50,7 @@ namespace slam
         void optimize();
         const gtsam::Values& currentEstimates() const { return estimates_; }
         void processTimestep(const Timestep<POSE, POINT>& timestep);
-        void initialize(double ic_prob, const gtsam::Vector &pose_prior_noise, double range_threshold); //, const gtsam::Vector &lmk_prior_noise);
+        void initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
         const gtsam::NonlinearFactorGraph& getGraph() const { return smoother_.getFactors(); }

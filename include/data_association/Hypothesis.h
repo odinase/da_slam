@@ -12,7 +12,7 @@
 #include <gtsam/nonlinear/Marginals.h>
 // #include "MarginalMocks.h"
 
-namespace data_association
+namespace da
 {
     namespace hypothesis
     {
@@ -83,6 +83,6 @@ namespace data_association
         };
 
     } // namespace hypothesis
-} // namespace data_association
+} // namespace da
 
 #endif // HYPOTHESIS_H
