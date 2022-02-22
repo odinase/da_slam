@@ -99,7 +99,6 @@ target_link_libraries(slam_g2o_file
   gtsam
   gtsam_unstable
   hypothesis
-  # jcbb
   glog::glog
 )
 

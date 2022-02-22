@@ -19,34 +19,33 @@
 
 namespace da
 {
-        namespace ml
-        {
+  namespace ml
+  {
 
-                using hypothesis::Association;
-                using hypothesis::Hypothesis;
+    using hypothesis::Association;
+    using hypothesis::Hypothesis;
 
-                template <class POSE, class POINT>
-                class MaximumLikelihood : public DataAssociation<slam::Measurement<POINT>>
-                {
+    template <class POSE, class POINT>
+    class MaximumLikelihood : public DataAssociation<slam::Measurement<POINT>>
+    {
 
-                private:
-                        double ic_prob_;
-                        double range_threshold_;
+    private:
+      double ic_prob_;
+      double range_threshold_;
 
-                public:
-                        // typedef std::shared_ptr<MaximumLikelihood> shared_ptr;
-                        MaximumLikelihood(double ic_prob, double range_threshold = 1e9);
-                        virtual hypothesis::Hypothesis associate(
-                            const gtsam::Values &estimates,
-                            const gtsam::Marginals &marginals,
-                            const gtsam::FastVector<slam::Measurement<POINT>> &measurements
-                        ) override;
-                };
+    public:
+      // typedef std::shared_ptr<MaximumLikelihood> shared_ptr;
+      MaximumLikelihood(double ic_prob, double range_threshold = 1e9);
+      virtual hypothesis::Hypothesis associate(
+          const gtsam::Values &estimates,
+          const gtsam::Marginals &marginals,
+          const gtsam::FastVector<slam::Measurement<POINT>> &measurements) override;
+    };
 
     using MaximumLikelihood2D = MaximumLikelihood<gtsam::Pose2, gtsam::Point2>;
     using MaximumLikelihood3D = MaximumLikelihood<gtsam::Pose3, gtsam::Point3>;
 
-        } // namespace ml
+  } // namespace ml
 } // namespace da
 
 #include "data_association/ml/MaximumLikelihood.hxx"
