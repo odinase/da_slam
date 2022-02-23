@@ -32,7 +32,7 @@ namespace slam
     gtsam::ISAM2Params params;
     params.setOptimizationParams(gtsam::ISAM2GaussNewtonParams());
     // params.setOptimizationParams(gtsam::ISAM2DoglegParams());
-    params.setRelinearizeThreshold(0.05);
+    params.setRelinearizeThreshold(0.001);
     // double smoother_lag = 0.0;
 
     isam_ = gtsam::ISAM2(params);
