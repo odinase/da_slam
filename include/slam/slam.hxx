@@ -32,19 +32,19 @@ namespace slam
     gtsam::ISAM2Params params;
     params.setOptimizationParams(gtsam::ISAM2GaussNewtonParams());
     // params.setOptimizationParams(gtsam::ISAM2DoglegParams());
-    // params.setRelinearizeThreshold(0.05);
-    double smoother_lag = 0.0;
+    params.setRelinearizeThreshold(0.05);
+    // double smoother_lag = 0.0;
 
-    smoother_ = gtsam::IncrementalFixedLagSmoother(smoother_lag, params);
-    // smoother_ = gtsam::ISAM2(params);
+    isam_ = gtsam::ISAM2(params);
+    // isam_ = gtsam::ISAM2(params);
 
     // Add prior on first pose
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
     initial_estimates_.insert(X(latest_pose_key_), POSE());
 
-    smoother_.update(graph_, initial_estimates_);
+    isam_.update(graph_, initial_estimates_);
 
-    estimates_ = smoother_.calculateEstimate();
+    estimates_ = isam_.calculateEstimate();
     graph_.resize(0);
     initial_estimates_.clear();
   }
@@ -79,8 +79,8 @@ namespace slam
       addOdom(timestep.odom);
     }
 
-    gtsam::NonlinearFactorGraph full_graph = smoother_.getFactors();
-    gtsam::Values estimates = smoother_.calculateEstimate();
+    gtsam::NonlinearFactorGraph full_graph = isam_.getFactorsUnsafe();
+    gtsam::Values estimates = isam_.calculateEstimate();
 
     gtsam::Marginals marginals = gtsam::Marginals(full_graph, estimates);
 
@@ -111,13 +111,13 @@ namespace slam
     }
     std::cout << "Associated " << associated_measurements << " / " << timestep.measurements.size() << " measurements in timestep " << timestep.step << "\n";
 
-    smoother_.update(graph_, initial_estimates_);
+    isam_.update(graph_, initial_estimates_);
     if (new_loop_closure) {
       for (int i = 0; i < 5; i++) {
-        smoother_.update();
+        isam_.update();
       }
     }
-    estimates_ = smoother_.calculateEstimate();
+    estimates_ = isam_.calculateEstimate();
 
     graph_.resize(0);
     initial_estimates_.clear();
@@ -130,7 +130,7 @@ namespace slam
     POSE this_pose = latest_pose_ * odom.odom;
     initial_estimates_.insert(X(latest_pose_key_ + 1), this_pose);
     latest_pose_ = this_pose;
-    smoother_.update(graph_, initial_estimates_);
+    isam_.update(graph_, initial_estimates_);
 
     graph_.resize(0);
     initial_estimates_.clear();

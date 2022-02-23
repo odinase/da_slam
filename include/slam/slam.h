@@ -24,7 +24,7 @@ namespace slam
     {
     private:
         gtsam::NonlinearFactorGraph graph_;
-        gtsam::IncrementalFixedLagSmoother smoother_;
+        gtsam::ISAM2 isam_;
 
         gtsam::Values estimates_;
         gtsam::Values initial_estimates_;
@@ -53,11 +53,8 @@ namespace slam
         void initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
-        const gtsam::NonlinearFactorGraph& getGraph() const { return smoother_.getFactors(); }
-        double error() const { return smoother_.getFactors().error(estimates_); }
-
-        // const gtsam::FastVector<jcbb::Hypothesis> &getChosenHypotheses() const { return hypotheses_; }
-        // AssociationMethod getAssociationMethod() const { return association_method_; }
+        const gtsam::NonlinearFactorGraph& getGraph() const { return isam_.getFactorsUnsafe(); }
+        double error() const { return isam_.getFactorsUnsafe().error(estimates_); }
     };
 
     using SLAM3D = SLAM<gtsam::Pose3, gtsam::Point3>;

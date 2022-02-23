@@ -36,31 +36,29 @@ namespace da
       int last_pose = poses.size() - 1; // Assuming first pose is 0
       gtsam::Key x_key = X(last_pose);
       POSE x_pose = estimates.at<POSE>(x_key);
+      size_t num_measurements = measurements.size();
+      size_t num_landmarks = landmark_keys.size();
 
-      if (landmark_keys.size() == 0 || measurements.size() == 0)
+      if (num_landmarks == 0 || num_measurements == 0)
       {
         hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
-        h.fill_with_unassociated_measurements(measurements.size());
+        h.fill_with_unassociated_measurements(num_measurements);
         return h;
       }
 
       gtsam::Matrix Hx, Hl;
-
-      int num_measurements = measurements.size();
-      int num_landmarks = landmark_keys.size();
-
       gtsam::Matrix cost_matrix = gtsam::Matrix::Constant(num_measurements + num_landmarks, num_landmarks, -std::numeric_limits<double>::infinity());
 
-      // Fill bottom diagonal with dummy "dummy measurements" meaning they are unassigned.
+      // Fill bottom diagonal with "dummy measurements" meaning they are unassigned.
       cost_matrix.bottomRows(num_landmarks).diagonal() << gtsam::Vector::Constant(num_landmarks, -10'000);
 
-      for (int meas_idx = 0; meas_idx < measurements.size(); meas_idx++)
+      for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;
         POINT meas_world = x_pose * meas;
         const auto &noise = measurements[meas_idx].noise;
 
-        for (int lmk_idx = 0; lmk_idx < landmark_keys.size(); lmk_idx++)
+        for (int lmk_idx = 0; lmk_idx < num_landmarks; lmk_idx++)
         {
           gtsam::Key l = L(lmk_idx);
           POINT lmk = estimates.at<POINT>(l);
