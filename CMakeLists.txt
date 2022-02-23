@@ -95,3 +95,19 @@ target_link_libraries(slam_g2o_file
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
+
+# Not the correct way of doing this, but whatever
+
+
+add_executable(test_auction_method
+  tests/test_auction_method.cpp
+)
+
+target_link_libraries(test_auction_method
+  Eigen3::Eigen
+  gtsam
+  gtsam_unstable
+  glog::glog
+)
+
+set_target_properties(test_auction_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )

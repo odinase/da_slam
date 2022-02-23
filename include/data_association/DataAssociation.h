@@ -4,7 +4,7 @@
 #include <limits>
 #include <memory>
 #include <boost/math/distributions.hpp>
-
+#include <deque>
 namespace da
 {
 
@@ -177,6 +177,55 @@ namespace da
   {
     boost::math::chi_squared dist(dim);
     return quantile(dist, p);
+  }
+
+  std::vector<int> auction(const Eigen::MatrixXd& problem, double eps = 1e-3, uint64_t max_iterations = 10'000) {
+    int m = problem.rows();
+    int n = problem.cols();
+
+    std::deque<int> unassigned_queue;
+    std::vector<int> assigned_landmarks;
+
+    // Initilize
+    for (int i = 0; i < n; i++) {
+      unassigned_queue.push_back(i);
+      assigned_landmarks.push_back(-1);
+    }
+
+    // Use Eigen vector for convenience below
+    Eigen::VectorXd prices(m);
+    for (int i = 0; i < m; i++) {
+      prices(i) = 0;
+    }
+
+    uint64_t curr_iter = 0;
+
+    while (!unassigned_queue.empty()) {
+      int l_star = unassigned_queue.front();
+      unassigned_queue.pop_front();
+
+      if (curr_iter > max_iterations) {
+        break;
+      }
+      Eigen::MatrixXd::Index i_star;
+      double val_max = (problem.col(l_star) - prices).maxCoeff(&i_star);
+
+      auto prev_owner = std::find(assigned_landmarks.begin(), assigned_landmarks.end(), i_star);
+      assigned_landmarks[l_star] = i_star;
+
+      if (prev_owner != assigned_landmarks.end()) {
+        // The item has a previous owner
+        *prev_owner = -1;
+        int pos = std::distance(assigned_landmarks.begin(), prev_owner);
+        unassigned_queue.push_back(pos);
+      }
+
+      double y = problem(i_star, l_star) - val_max;
+      prices(i_star) += y + eps;
+      curr_iter++;
+    }
+
+    return assigned_landmarks;
   }
 
 } // namespace data_association
