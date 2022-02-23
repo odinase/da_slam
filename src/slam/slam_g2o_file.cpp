@@ -110,6 +110,9 @@ int main(int argc, char **argv)
             Values::shared_ptr initial2;
             boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
             writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
+            ofstream os("/home/odinase/prog/C++/da-slam/graph.txt");
+            slam_sys.getGraph().saveGraph(os, slam_sys.currentEstimates());
+            os.close();
         }
         else
         {
@@ -141,6 +144,10 @@ int main(int argc, char **argv)
             Values::shared_ptr initial2;
             boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
             writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
+                        ofstream os("/home/odinase/prog/C++/da-slam/graph.txt");
+            slam_sys.getGraph().saveGraph(os, slam_sys.currentEstimates());
+            os.close();
+
         }
     }
     catch (gtsam::IndeterminantLinearSystemException &indetErr)

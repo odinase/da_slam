@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <memory>
 #include <slam/types.h>
+#include <limits>
+
+#include "data_association/Hungarian.h"
 
 namespace da
 {
@@ -17,7 +20,7 @@ namespace da
 
     template <class POSE, class POINT>
     MaximumLikelihood<POSE, POINT>::MaximumLikelihood(double sigmas, double range_threshold)
-        : mh_threshold_(sigmas*sigmas),
+        : mh_threshold_(sigmas * sigmas),
           range_threshold_(range_threshold)
     {
     }
@@ -34,72 +37,124 @@ namespace da
       gtsam::Key x_key = X(last_pose);
       POSE x_pose = estimates.at<POSE>(x_key);
 
-      // First loop over all measurements, and find the lowest Mahalanobis distance
-      gtsam::FastMap<gtsam::Key, gtsam::FastVector<std::pair<int, double>>> lmk_measurement_assos;
+      if (landmark_keys.size() == 0 || measurements.size() == 0)
+      {
+        hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
+        h.fill_with_unassociated_measurements(measurements.size());
+        return h;
+      }
+
       gtsam::Matrix Hx, Hl;
 
-      for (int i = 0; i < measurements.size(); i++)
+      int num_measurements = measurements.size();
+      int num_landmarks = landmark_keys.size();
+
+      gtsam::Matrix cost_matrix = gtsam::Matrix::Constant(num_measurements + num_landmarks, num_landmarks, std::numeric_limits<double>::infinity());
+
+      // Fill bottom diagonal with dummy "dummy measurements" meaning they are unassigned.
+      cost_matrix.bottomRows(num_landmarks).diagonal() << gtsam::Vector::Constant(num_landmarks, 10'000);
+
+      for (int meas_idx = 0; meas_idx < measurements.size(); meas_idx++)
       {
-        const auto &meas = measurements[i].measurement;
+        const auto &meas = measurements[meas_idx].measurement;
         POINT meas_world = x_pose * meas;
-        const auto &noise = measurements[i].noise;
+        const auto &noise = measurements[meas_idx].noise;
 
-        double lowest_nis = std::numeric_limits<double>::infinity();
-
-        std::pair<int, double> smallest_innovation(-1, 0.0);
-        for (const auto &l : landmark_keys)
+        for (int lmk_idx = 0; lmk_idx < landmark_keys.size(); lmk_idx++)
         {
+          gtsam::Key l = L(lmk_idx);
           POINT lmk = estimates.at<POINT>(l);
           if ((meas_world - lmk).norm() > range_threshold_)
           {
+            // std::cout << "landmark " << lmk_idx << " not associated, too far away at " << (meas_world - lmk).norm() << "? Skipping\n";
             continue; // Landmark too far away to be relevant.
           }
+
           gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
-          hypothesis::Association a(i, l, Hx, Hl, error);
+          hypothesis::Association a(meas_idx, l, Hx, Hl, error);
           double nis = individual_compatability(a, x_key, marginals, measurements);
 
           // Individually compatible?
           if (nis < mh_threshold_)
           {
-            // Better association than already found?
-            if (nis < lowest_nis)
-            {
-              lowest_nis = nis;
-              smallest_innovation = {gtsam::symbolIndex(l), nis};
-            }
+            // We use negative NIS to force the highest reward to be the one with the lowest nis
+            cost_matrix(meas_idx, lmk_idx) = nis;
           }
-        }
-        // We found a valid association
-        if (smallest_innovation.first != -1)
-        {
-          lmk_measurement_assos[L(smallest_innovation.first)].push_back({i, smallest_innovation.second});
         }
       }
 
+      std::vector<std::vector<double>> cost_vec_vec;
+      for (int i = 0; i < cost_matrix.rows(); i++)
+      {
+        cost_vec_vec.push_back({});
+        for (int j = 0; j < cost_matrix.cols(); j++)
+        {
+          cost_vec_vec.back().push_back(cost_matrix(i, j));
+        }
+      }
+
+      HungarianAlgorithm HungAlgo;
+      std::vector<int> associated_landmarks;
+
+      std::cout << "cost_vec_vec is\n";
+      for (int i = 0; i < cost_vec_vec.size(); i++)
+      {
+        for (int j = 0; j < cost_vec_vec[i].size(); j++)
+        {
+          std::cout << cost_vec_vec[i][j] << " ";
+        }
+        std::cout << "\n";
+      }
+
+      double cost = HungAlgo.Solve(cost_vec_vec, associated_landmarks);
+
+      for (int i = 0; i < associated_landmarks.size(); i++)
+      {
+        std::cout << "Assoiated " << i << " wth " << associated_landmarks[i] << "\n";
+      }
+
+      // Assignment should now be landmarks idx for idx and measurement in vector
+
+      // std::vector<int> associated_landmarks = auction(cost_matrix);
+      double tot_reward = 0.0;
+      double asso_reward = 0.0;
       // Loop over all landmarks with measurement associated with it and pick put the best one by pruning out all measurements except the best one in terms of Mahalanobis distance.
       hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
-      for (const auto &[l, ms] : lmk_measurement_assos)
+      for (int meas_idx = 0; meas_idx < associated_landmarks.size(); meas_idx++)
       {
-        auto p = std::min_element(ms.begin(), ms.end(), [](const auto &p1, const auto &p2)
-                                  { return p1.second < p2.second; });
-        // Pretty redundant to do full recomputation here, but oh well
+        int lmk_idx = associated_landmarks[meas_idx];
+        tot_reward += cost_matrix(meas_idx, lmk_idx);
+        if (lmk_idx == -1 || meas_idx >= measurements.size())
+        {
+          // std::cout << "landmark " << lmk_idx << " not associated\n";//, too far away at "<< (meas_world - lmk).norm() << "? Skipping\n";
+          continue; // Landmark associated with dummy measurement, so skip
+        }
+        gtsam::Key l = L(lmk_idx);
         POINT lmk = estimates.at<POINT>(l);
-        const auto &meas = measurements[p->first].measurement;
-        const auto &noise = measurements[p->first].noise;
+
+        asso_reward += cost_matrix(meas_idx, lmk_idx);
+
+        const auto &meas = measurements[meas_idx].measurement;
+        const auto &noise = measurements[meas_idx].noise;
+
         gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
         gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
-        Association::shared_ptr a = std::make_shared<Association>(p->first, l, Hx, Hl, error);
+        Association::shared_ptr a = std::make_shared<Association>(meas_idx, l, Hx, Hl, error);
+        double nis = individual_compatability(*a, x_key, marginals, measurements);
+        // std::cout << "landmark " << lmk_idx << " associated to measurement " << meas_idx << " with nis " << nis << " which is within threshold " << mh_threshold_ << "\n";
         h.extend(a);
       }
       h.fill_with_unassociated_measurements(measurements.size());
 
-      // This computation is not needed right now
-      #ifdef HYPOTHESIS_QUALITY
+      std::cout << "total reward: " << tot_reward << "\nasso reward: " << asso_reward << "\n";
+
+// This computation is not needed right now
+#ifdef HYPOTHESIS_QUALITY
       std::cout << "Computing joint NIS\n";
       double nis = joint_compatability<POSE::dimension, POINT::RowsAtCompileTime, POINT::RowsAtCompileTime>(h, x_key, marginals, measurements);
       h.set_nis(nis);
-      #endif
+#endif
 
       return h;
     }

@@ -76,6 +76,20 @@ target_link_libraries(hypothesis
 #   glog::glog
 # )
 
+add_library(hungarian
+  src/data_association/Hungarian.cpp
+)
+
+# target_link_libraries(hungarian
+#   jcbb
+#   gt
+#   ml
+#   # ${catkin_LIBRARIES}
+#   Eigen3::Eigen
+#   gtsam
+# )
+
+
 option(HYPOTHESIS_QUALITY "Compute NIS for joint hypothesis for comparision of hypothesis quality" OFF)
 
 if (HYPOTHESIS_QUALITY)
@@ -92,6 +106,7 @@ target_link_libraries(slam_g2o_file
   gtsam_unstable
   hypothesis
   glog::glog
+  hungarian
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
@@ -108,6 +123,7 @@ target_link_libraries(test_auction_method
   gtsam
   gtsam_unstable
   glog::glog
+  hungarian
 )
 
 set_target_properties(test_auction_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )

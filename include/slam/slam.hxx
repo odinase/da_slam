@@ -85,6 +85,7 @@ namespace slam
 
     const auto &assos = h.associations();
     POSE T_wb = estimates.at<POSE>(X(latest_pose_key_));
+    int associated_measurements = 0;
     for (int i = 0; i < assos.size(); i++)
     {
       da::hypothesis::Association::shared_ptr a = assos[i];
@@ -94,6 +95,7 @@ namespace slam
       if (a->associated())
       {
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), *a->landmark, meas, meas_noise));
+        associated_measurements++;
       }
       else
       {
@@ -102,6 +104,7 @@ namespace slam
         incrementLatestLandmarkKey();
       }
     }
+    std::cout << "Associated " << associated_measurements << " / " << timestep.measurements.size() << " measurements in timestep " << timestep.step << "\n";
 
     smoother_.update(graph_, initial_estimates_);
     estimates_ = smoother_.calculateEstimate();
