@@ -31,9 +31,12 @@ namespace slam
     // Run with Gauss Newton (should be default)
     gtsam::ISAM2Params params;
     params.setOptimizationParams(gtsam::ISAM2GaussNewtonParams());
+    // params.setOptimizationParams(gtsam::ISAM2DoglegParams());
+    // params.setRelinearizeThreshold(0.05);
     double smoother_lag = 0.0;
 
     smoother_ = gtsam::IncrementalFixedLagSmoother(smoother_lag, params);
+    // smoother_ = gtsam::ISAM2(params);
 
     // Add prior on first pose
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
@@ -86,6 +89,7 @@ namespace slam
     const auto &assos = h.associations();
     POSE T_wb = estimates.at<POSE>(X(latest_pose_key_));
     int associated_measurements = 0;
+    bool new_loop_closure = false;
     for (int i = 0; i < assos.size(); i++)
     {
       da::hypothesis::Association::shared_ptr a = assos[i];
@@ -94,6 +98,7 @@ namespace slam
       POINT meas_world = T_wb * meas;
       if (a->associated())
       {
+        new_loop_closure = true;
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), *a->landmark, meas, meas_noise));
         associated_measurements++;
       }
@@ -107,6 +112,11 @@ namespace slam
     std::cout << "Associated " << associated_measurements << " / " << timestep.measurements.size() << " measurements in timestep " << timestep.step << "\n";
 
     smoother_.update(graph_, initial_estimates_);
+    if (new_loop_closure) {
+      for (int i = 0; i < 5; i++) {
+        smoother_.update();
+      }
+    }
     estimates_ = smoother_.calculateEstimate();
 
     graph_.resize(0);

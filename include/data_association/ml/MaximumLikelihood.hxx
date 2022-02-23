@@ -49,10 +49,10 @@ namespace da
       int num_measurements = measurements.size();
       int num_landmarks = landmark_keys.size();
 
-      gtsam::Matrix cost_matrix = gtsam::Matrix::Constant(num_measurements + num_landmarks, num_landmarks, std::numeric_limits<double>::infinity());
+      gtsam::Matrix cost_matrix = gtsam::Matrix::Constant(num_measurements + num_landmarks, num_landmarks, -std::numeric_limits<double>::infinity());
 
       // Fill bottom diagonal with dummy "dummy measurements" meaning they are unassigned.
-      cost_matrix.bottomRows(num_landmarks).diagonal() << gtsam::Vector::Constant(num_landmarks, 10'000);
+      cost_matrix.bottomRows(num_landmarks).diagonal() << gtsam::Vector::Constant(num_landmarks, -10'000);
 
       for (int meas_idx = 0; meas_idx < measurements.size(); meas_idx++)
       {
@@ -79,53 +79,21 @@ namespace da
           if (nis < mh_threshold_)
           {
             // We use negative NIS to force the highest reward to be the one with the lowest nis
-            cost_matrix(meas_idx, lmk_idx) = nis;
+            cost_matrix(meas_idx, lmk_idx) = -nis;
           }
         }
       }
 
-      std::vector<std::vector<double>> cost_vec_vec;
-      for (int i = 0; i < cost_matrix.rows(); i++)
-      {
-        cost_vec_vec.push_back({});
-        for (int j = 0; j < cost_matrix.cols(); j++)
-        {
-          cost_vec_vec.back().push_back(cost_matrix(i, j));
-        }
-      }
-
-      HungarianAlgorithm HungAlgo;
-      std::vector<int> associated_landmarks;
-
-      std::cout << "cost_vec_vec is\n";
-      for (int i = 0; i < cost_vec_vec.size(); i++)
-      {
-        for (int j = 0; j < cost_vec_vec[i].size(); j++)
-        {
-          std::cout << cost_vec_vec[i][j] << " ";
-        }
-        std::cout << "\n";
-      }
-
-      double cost = HungAlgo.Solve(cost_vec_vec, associated_landmarks);
-
-      for (int i = 0; i < associated_landmarks.size(); i++)
-      {
-        std::cout << "Assoiated " << i << " wth " << associated_landmarks[i] << "\n";
-      }
-
-      // Assignment should now be landmarks idx for idx and measurement in vector
-
-      // std::vector<int> associated_landmarks = auction(cost_matrix);
+      std::vector<int> associated_landmarks = auction(cost_matrix);
       double tot_reward = 0.0;
       double asso_reward = 0.0;
       // Loop over all landmarks with measurement associated with it and pick put the best one by pruning out all measurements except the best one in terms of Mahalanobis distance.
       hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
-      for (int meas_idx = 0; meas_idx < associated_landmarks.size(); meas_idx++)
+      for (int lmk_idx = 0; lmk_idx < associated_landmarks.size(); lmk_idx++)
       {
-        int lmk_idx = associated_landmarks[meas_idx];
+        int meas_idx = associated_landmarks[lmk_idx];
         tot_reward += cost_matrix(meas_idx, lmk_idx);
-        if (lmk_idx == -1 || meas_idx >= measurements.size())
+        if (meas_idx == -1 || meas_idx >= measurements.size())
         {
           // std::cout << "landmark " << lmk_idx << " not associated\n";//, too far away at "<< (meas_world - lmk).norm() << "? Skipping\n";
           continue; // Landmark associated with dummy measurement, so skip
