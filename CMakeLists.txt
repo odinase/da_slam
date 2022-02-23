@@ -95,3 +95,17 @@ target_link_libraries(slam_g2o_file
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
+
+add_executable(test_g2o_parsing
+  src/test_g2o_parsing.cpp
+)
+
+target_link_libraries(test_g2o_parsing
+  Eigen3::Eigen
+  gtsam
+  gtsam_unstable
+  # hypothesis
+  # glog::glog
+)
+
+set_target_properties(test_g2o_parsing PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
