@@ -31,6 +31,9 @@
 #include <fstream>
 #include <boost/filesystem/path.hpp>
 #include <ctime>
+
+#include "slam/types.h"
+
 using gtsam::symbol_shorthand::L;  // gtsam/slam/dataset.cpp
 
 namespace gtsam {
@@ -322,3 +325,63 @@ bool isPutativeAssociation(const Key key1, const Key key2, const Vector diff,
 }
 
 }  // namespace gtsam
+
+
+
+template <class POSE, class POINT>
+std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
+    std::vector<boost::shared_ptr<gtsam::BetweenFactor<POSE>>> &odomFactors,
+    std::vector<boost::shared_ptr<gtsam::PoseToPointFactor<POSE, POINT>>> &measFactors)
+{
+    // Sort factors based on robot pose key, so that we can simply check when in time they should appear
+    std::sort(
+        odomFactors.begin(),
+        odomFactors.end(),
+        [](const auto &lhs, const auto &rhs)
+        {
+            return gtsam::symbolIndex(lhs->key1()) < gtsam::symbolIndex(rhs->key1());
+        });
+    std::sort(
+        measFactors.begin(),
+        measFactors.end(),
+        [](const auto &lhs, const auto &rhs)
+        {
+            return gtsam::symbolIndex(lhs->key1()) < gtsam::symbolIndex(rhs->key1());
+        });
+
+    size_t odoms = odomFactors.size();
+    uint64_t num_timesteps = odoms + 1; // There will always be one more robot pose than odometry factors since they're all between
+    std::vector<slam::Timestep<POSE, POINT>> timesteps;
+    size_t curr_measurement = 0;
+    size_t tot_num_measurements = measFactors.size();
+    timesteps.reserve(num_timesteps);
+    for (uint64_t t = 0; t < num_timesteps; t++)
+    {
+        slam::Timestep<POSE, POINT> timestep;
+        timestep.step = t;
+        // Initialize first odom as identity, as we haven't moved yet
+        if (t > 0)
+        {
+            timestep.odom.odom = odomFactors[t - 1]->measured();
+            timestep.odom.noise = odomFactors[t - 1]->noiseModel();
+        }
+        else
+        {
+            timestep.odom.odom = POSE();
+        }
+
+        // Extract measurements from current pose
+        while (curr_measurement < tot_num_measurements && gtsam::symbolIndex(measFactors[curr_measurement]->key1()) == t)
+        {
+            slam::Measurement<POINT> meas;
+            meas.measurement = measFactors[curr_measurement]->measured();
+            meas.noise = measFactors[curr_measurement]->noiseModel();
+            timestep.measurements.push_back(meas);
+            curr_measurement++;
+        }
+
+        timesteps.push_back(timestep);
+    }
+
+    return timesteps;
+}
