@@ -5,6 +5,8 @@
 #include <memory>
 #include <boost/math/distributions.hpp>
 #include <deque>
+#include <iostream>
+
 namespace da
 {
 
@@ -43,6 +45,7 @@ namespace da
     }
     Eigen::VectorXd innov = a.error;
     Eigen::MatrixXd P = marginals.jointMarginalCovariance(gtsam::KeyVector{{x_key, *a.landmark}}).fullMatrix();
+
     // TODO: Fix here later
     int rows = a.Hx.rows();
     int cols = a.Hx.cols() + a.Hl.cols();
@@ -52,6 +55,7 @@ namespace da
     const auto &meas_noise = measurements[a.measurement].noise;
     Eigen::MatrixXd R = meas_noise->sigmas().array().square().matrix().asDiagonal();
     Eigen::MatrixXd S = H * P * H.transpose() + R;
+    // S.diagonal() += meas_noise->sigmas().array().square().matrix();
 
     return innov.transpose() * S.llt().solve(innov);
   }
@@ -183,6 +187,8 @@ namespace da
     int m = problem.rows();
     int n = problem.cols();
 
+    std::cout << "Starting auction with problem size (" << m << ", " << n << ")\n";
+
     std::deque<int> unassigned_queue;
     std::vector<int> assigned_landmarks;
 
@@ -200,7 +206,7 @@ namespace da
 
     uint64_t curr_iter = 0;
 
-    while (!unassigned_queue.empty()) {
+    while (!unassigned_queue.empty() && curr_iter < max_iterations) {
       int l_star = unassigned_queue.front();
       unassigned_queue.pop_front();
 
@@ -223,6 +229,17 @@ namespace da
       double y = problem(i_star, l_star) - val_max;
       prices(i_star) += y + eps;
       curr_iter++;
+    }
+
+    if (curr_iter >= max_iterations) {
+      std::cout << "\x1B[31m" << "Auction terminated early!\n" << "\033[0m";
+    } else {
+      std::cout << "\x1B[32m" << "Auction terminated successfully after " << curr_iter << " iterations!\n" << "\033[0m";      
+    }
+
+    std::cout << "Solution from auction:\n";
+    for (int i = 0; i < assigned_landmarks.size(); i++) {
+      std::cout << "Landmark " << i << " with measurement " << assigned_landmarks[i] << "\n";
     }
 
     return assigned_landmarks;

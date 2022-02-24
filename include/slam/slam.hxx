@@ -137,10 +137,10 @@ namespace slam
     }
     std::cout << "Associated " << associated_measurements << " / " << timestep.measurements.size() << " measurements in timestep " << timestep.step << "\n";
 
-    if (associated_measurements == 0 && timestep.measurements.size() > 0)
-    {
-      log_timestep(timestep, h);
-    }
+    // if (associated_measurements == 0 && timestep.measurements.size() > 0)
+    // {
+    //   log_timestep(timestep, h);
+    // }
 
     isam_.update(graph_, initial_estimates_);
     if (new_loop_closure)

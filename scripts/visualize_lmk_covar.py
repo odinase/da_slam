@@ -103,4 +103,7 @@ if __name__ == "__main__":
             # nis = (m - l)@np.linalg.solve(C, m - l)
             # print(f"nis: {nis} < {s**2}: {nis < s**2}")
 
+        timestep = os.path.basename(ff)[:9][:-4]
+        ax.set_title(f"Timestep {timestep}")
+
         plt.show()
