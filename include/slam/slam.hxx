@@ -9,8 +9,18 @@
 #include <gtsam/nonlinear/DoglegOptimizer.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 
+
+#include <gtsam/base/FastVector.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/slam/BetweenFactor.h>
+#include <gtsam_unstable/slam/PoseToPointFactor.h>
+
+
 #include <iostream>
 #include <chrono>
+#include <fstream>
+#include <set>
 
 namespace slam
 {
@@ -111,6 +121,10 @@ namespace slam
     }
     std::cout << "Associated " << associated_measurements << " / " << timestep.measurements.size() << " measurements in timestep " << timestep.step << "\n";
 
+    if (associated_measurements == 0 && timestep.measurements.size() > 0) {
+      log_timestep(timestep, h);
+    }
+
     isam_.update(graph_, initial_estimates_);
     if (new_loop_closure) {
       for (int i = 0; i < 5; i++) {
@@ -154,4 +168,73 @@ namespace slam
 
     return predicted_measurements;
   }
+
+  template<class POSE, class POINT>
+  void SLAM<POSE, POINT>::log_timestep(const Timestep<POSE, POINT>& timestep, const da::hypothesis::Hypothesis& h) {
+    std::ofstream o; //ofstream is the class for fstream package
+    o.open("/home/odinase/prog/C++/da-slam/logs/timestep_" + std::to_string(timestep.step) + ".txt"); //open is the method of ofstream
+
+    gtsam::NonlinearFactorGraph full_graph = isam_.getFactorsUnsafe();
+    const gtsam::Values estimates = isam_.calculateEstimate();
+
+    gtsam::Marginals marginals = gtsam::Marginals(full_graph, estimates);
+      gtsam::KeyList landmark_keys = estimates.filter(gtsam::Symbol::ChrTest('l')).keys();
+
+    // We want to find all landmarks that were deemed close enough to at least measurement and draw their marginal expectation and covariance
+    gtsam::Matrix Hx, Hl;
+
+    for (int meas_idx = 0; meas_idx < timestep.measurements.size(); meas_idx++)
+      {
+      o << "z" << meas_idx << " ";
+        const auto &meas = timestep.measurements[meas_idx].measurement;
+      o << meas.transpose() << "\n";
+        POINT meas_world = latest_pose_ * meas;
+        const auto &noise = timestep.measurements[meas_idx].noise;
+
+        for (const auto& l : landmark_keys)
+        {
+          POINT lmk = estimates.at<POINT>(l);
+          if ((meas_world - lmk).norm() > 3)
+          {
+            continue; // Landmark too far away to be relevant.
+          }
+          o << "l" << gtsam::symbolIndex(l) << " ";
+
+          gtsam::PoseToPointFactor<POSE, POINT> factor(latest_pose_key_, l, meas, noise);
+          gtsam::Vector error = factor.evaluateError(latest_pose_, lmk, Hx, Hl);
+          da::hypothesis::Association a(meas_idx, l, Hx, Hl, error);
+
+          Eigen::VectorXd innov = a.error;
+          // std::cout << "in timestep " << timestep.step << " and pose key is " << gtsam::symbolIndex(latest_pose_key_) << "\n";
+          // std::cout << "checking landmark " << gtsam::symbolIndex(l) << " with " << landmark_keys.size() << " lmks in total\n";
+          Eigen::MatrixXd P = marginals.jointMarginalCovariance(gtsam::KeyVector{{X(latest_pose_key_), l}}).fullMatrix();
+
+          int rows = a.Hx.rows();
+          int cols = a.Hx.cols() + a.Hl.cols();
+          Eigen::MatrixXd H(rows, cols);
+          H << a.Hx, a.Hl;
+
+          Eigen::MatrixXd R = noise->sigmas().array().square().matrix().asDiagonal();
+          Eigen::MatrixXd S = H * P * H.transpose() + R;
+
+          double nis = innov.transpose() * S.llt().solve(innov);
+
+          // Express lmk in same frame as meas
+          POINT lmk_body = latest_pose_.inverse() * lmk;
+          o << lmk_body.transpose() << " ";
+          for (int i = 0; i < S.rows(); i++) {
+            for (int j = 0; j < S.cols(); j++) {
+              o << S(i,j) << " ";
+            }
+          }
+          o << "\n";
+        }
+        o << "\n";
+      }
+
+    o.close();
+  }
+
+
+
 } // namespace slam

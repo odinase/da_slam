@@ -42,6 +42,7 @@ namespace slam
 
         void addOdom(const Odometry<POSE> &odom);
         gtsam::FastVector<POINT> predictLandmarks() const;
+        void log_timestep(const Timestep<POSE, POINT>& timestep, const da::hypothesis::Hypothesis& h);
 
     public:
         SLAM();
