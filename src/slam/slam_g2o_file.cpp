@@ -134,8 +134,8 @@ int main(int argc, char **argv)
                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
                 avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
                 cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
-                cout << "Duration: " << duration << " seconds\n"
-                     << "Average time one iteration: " << avg_time << " seconds\n";
+                // cout << "Duration: " << duration << " seconds\n"
+                //      << "Average time one iteration: " << avg_time << " seconds\n";
                 total_time += duration;
                 final_error = slam_sys.error();
                 estimates = slam_sys.currentEstimates();

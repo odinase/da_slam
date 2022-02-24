@@ -26,7 +26,6 @@ namespace slam
         gtsam::NonlinearFactorGraph graph_;
         gtsam::ISAM2 isam_;
 
-        gtsam::Values estimates_;
         gtsam::Values initial_estimates_;
         gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_;
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
@@ -49,13 +48,13 @@ namespace slam
 
         // We need to initialize the graph with priors on the first pose and landmark
         void optimize();
-        const gtsam::Values& currentEstimates() const { return estimates_; }
+        const gtsam::Values currentEstimates() const { return isam_.calculateEstimate(); }
         void processTimestep(const Timestep<POSE, POINT>& timestep);
         void initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
         const gtsam::NonlinearFactorGraph& getGraph() const { return isam_.getFactorsUnsafe(); }
-        double error() const { return isam_.getFactorsUnsafe().error(estimates_); }
+        double error() const { return isam_.getFactorsUnsafe().error(currentEstimates()); }
     };
 
     using SLAM3D = SLAM<gtsam::Pose3, gtsam::Point3>;

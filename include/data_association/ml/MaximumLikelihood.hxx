@@ -39,12 +39,12 @@ namespace da
       size_t num_measurements = measurements.size();
       size_t num_landmarks = landmark_keys.size();
 
-      if (num_landmarks == 0 || num_measurements == 0)
-      {
-        hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
-        h.fill_with_unassociated_measurements(num_measurements);
-        return h;
-      }
+      // if (num_landmarks == 0 || num_measurements == 0)
+      // {
+      //   hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
+      //   h.fill_with_unassociated_measurements(num_measurements);
+      //   return h;
+      // }
 
       gtsam::Matrix Hx, Hl;
       gtsam::Matrix cost_matrix = gtsam::Matrix::Constant(num_measurements + num_landmarks, num_landmarks, -std::numeric_limits<double>::infinity());
@@ -113,7 +113,7 @@ namespace da
       }
       h.fill_with_unassociated_measurements(measurements.size());
 
-      std::cout << "total reward: " << tot_reward << "\nasso reward: " << asso_reward << "\n";
+      // std::cout << "total reward: " << tot_reward << "\nasso reward: " << asso_reward << "\n";
 
 // This computation is not needed right now
 #ifdef HYPOTHESIS_QUALITY
