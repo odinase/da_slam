@@ -46,33 +46,17 @@ namespace da
       size_t num_measurements = measurements.size();
       size_t num_landmarks = landmark_keys.size();
 
+      // Make hypothesis to return later
+      hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
+
       std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
       std::cout << "Initialization of div variables took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-
-    begin = std::chrono::steady_clock::now();
-
-      gtsam::KeyVector keys;
-      keys.push_back(x_key);
-      for (const auto& lmk_key : landmark_keys) {
-        keys.push_back(lmk_key);
-      }
-
-end = std::chrono::steady_clock::now();
-      std::cout << "Building key vector took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-
-    begin = std::chrono::steady_clock::now();
-
-      gtsam::JointMarginal joint_marginals = marginals.jointMarginalCovariance(keys);
-
-      end = std::chrono::steady_clock::now();
-      std::cout << "Making joint marginals took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
 
       begin = std::chrono::steady_clock::now();
 
       gtsam::Matrix Hx, Hl;
-
-      // Map of landmarks that are individually compatible with at least one measurement, with NIS
-      gtsam::FastMap<gtsam::Key, std::vector<std::pair<int, double>>> lmk_meas_asso_candidates;
+      gtsam::KeyVector keys;
+      keys.push_back(x_key);
 
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
@@ -84,11 +68,49 @@ end = std::chrono::steady_clock::now();
         {
           gtsam::Key l = L(lmk_idx);
           POINT lmk = estimates.at<POINT>(l);
-          if ((meas_world - lmk).norm() > range_threshold_)
+          if ((meas_world - lmk).norm() <= range_threshold_)
           {
-            continue; // Landmark too far away to be relevant.
+            // Key not already in vector
+            if (std::find(keys.begin(), keys.end(), l) == keys.end())
+            {
+              keys.push_back(l);
+            }
           }
+        }
+      }
 
+      end = std::chrono::steady_clock::now();
+      std::cout << "Building key vector took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
+      // If no landmarks are close enough, terminate 
+      if (keys.size() == 1) {
+        std::cout << "No landmarks close enough to measurements, terminating!\n";
+        return h;
+      }
+
+      begin = std::chrono::steady_clock::now();
+
+      gtsam::JointMarginal joint_marginals = marginals.jointMarginalCovariance(keys);
+
+      end = std::chrono::steady_clock::now();
+      std::cout << "Making joint marginals took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
+      begin = std::chrono::steady_clock::now();
+
+      // Map of landmarks that are individually compatible with at least one measurement, with NIS
+      gtsam::FastMap<gtsam::Key, std::vector<std::pair<int, double>>> lmk_meas_asso_candidates;
+
+      for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
+      {
+        const auto &meas = measurements[meas_idx].measurement;
+        POINT meas_world = x_pose * meas;
+        const auto &noise = measurements[meas_idx].noise;
+
+        // Start iteration at second element as the first one is state
+        for (int i = 1; i < keys.size(); i++)
+        {
+          gtsam::Key l = keys[i];
+          POINT lmk = estimates.at<POINT>(l);
           gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
           hypothesis::Association a(meas_idx, l, Hx, Hl, error);
@@ -103,11 +125,9 @@ end = std::chrono::steady_clock::now();
       }
 
       end = std::chrono::steady_clock::now();
-      std::cout << "Looping over all measurements and landmarks took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+      std::cout << "Computing individual compatibility took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
 
       begin = std::chrono::steady_clock::now();
-
-      hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
 
       size_t num_assoed_lmks = lmk_meas_asso_candidates.size();
 
