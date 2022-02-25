@@ -35,29 +35,35 @@ namespace da
   double individual_compatability(
       const hypothesis::Association &a,
       gtsam::Key x_key,
-      const gtsam::Marginals &marginals,
+      const gtsam::JointMarginal &joint_marginals,
       const gtsam::FastVector<MEASUREMENT> &measurements)
   {
     // Should never happen...
-    if (!a.associated())
-    {
-      return std::numeric_limits<double>::infinity();
-    }
-    Eigen::VectorXd innov = a.error;
-    Eigen::MatrixXd P = marginals.jointMarginalCovariance(gtsam::KeyVector{{x_key, *a.landmark}}).fullMatrix();
+    // if (!a.associated())
+    // {
+    //   return std::numeric_limits<double>::infinity();
+    // }
+    // Eigen::VectorXd innov = a.error;
+    // Eigen::MatrixXd P = marginals.jointMarginalCovariance(gtsam::KeyVector{{x_key, *a.landmark}}).fullMatrix();
 
-    // TODO: Fix here later
-    int rows = a.Hx.rows();
-    int cols = a.Hx.cols() + a.Hl.cols();
-    Eigen::MatrixXd H(rows, cols);
-    H << a.Hx, a.Hl;
+    // int rows = a.Hx.rows();
+    // int cols = a.Hx.cols() + a.Hl.cols();
+    // Eigen::MatrixXd H(rows, cols);
+    // H << a.Hx, a.Hl;
 
-    const auto &meas_noise = measurements[a.measurement].noise;
-    Eigen::MatrixXd R = meas_noise->sigmas().array().square().matrix().asDiagonal();
-    Eigen::MatrixXd S = H * P * H.transpose() + R;
-    // S.diagonal() += meas_noise->sigmas().array().square().matrix();
+    // const auto &meas_noise = measurements[a.measurement].noise;
+    // Eigen::MatrixXd R = meas_noise->sigmas().array().square().matrix().asDiagonal();
+    // Eigen::MatrixXd S = H * P * H.transpose() + R;
+    // Eigen::MatrixXd S = H * P * H.transpose() + R;
+    Eigen::MatrixXd S = 
+      a.Hx * joint_marginals(x_key, x_key) * a.Hx.transpose() // Hx * Pxx * Hx.T
+      + a.Hl * joint_marginals(*a.landmark, x_key) * a.Hx.transpose() // Hl * Plx * Hx.T
+      + a.Hx * joint_marginals(x_key, *a.landmark) * a.Hl.transpose() // Hx * Pxl * Hl.T
+      + a.Hl * joint_marginals(*a.landmark, *a.landmark) * a.Hl.transpose(); // Hl * Pll * Hl.T
 
-    return innov.transpose() * S.llt().solve(innov);
+    S.diagonal() += measurements[a.measurement].noise->sigmas().array().square().matrix();
+
+    return a.error.transpose() * S.llt().solve(a.error);
   }
 
   template <class MEASUREMENT>

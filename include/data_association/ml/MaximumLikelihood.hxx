@@ -45,16 +45,27 @@ namespace da
       POSE x_pose = estimates.at<POSE>(x_key);
       size_t num_measurements = measurements.size();
       size_t num_landmarks = landmark_keys.size();
-      
-      // gtsam::KeyVector keys;
-      // keys.push_back(x_key);
-      // for (const auto& lmk_key : landmark_keys) {
-      //   keys.push_back(lmk_key);
-      // }
-      // gtsam::JointMarginal joint_marginal = marginals.jointMarginalCovariance(keys);
 
       std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-      std::cout << "Initialization took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+      std::cout << "Initialization of div variables took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
+
+      gtsam::KeyVector keys;
+      keys.push_back(x_key);
+      for (const auto& lmk_key : landmark_keys) {
+        keys.push_back(lmk_key);
+      }
+
+end = std::chrono::steady_clock::now();
+      std::cout << "Building key vector took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
+
+      gtsam::JointMarginal joint_marginals = marginals.jointMarginalCovariance(keys);
+
+      end = std::chrono::steady_clock::now();
+      std::cout << "Making joint marginals took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
 
       begin = std::chrono::steady_clock::now();
 
@@ -81,7 +92,7 @@ namespace da
           gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
           hypothesis::Association a(meas_idx, l, Hx, Hl, error);
-          double nis = individual_compatability(a, x_key, marginals, measurements);
+          double nis = individual_compatability(a, x_key, joint_marginals, measurements);
 
           // Individually compatible?
           if (nis < mh_threshold_)
