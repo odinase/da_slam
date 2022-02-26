@@ -36,6 +36,8 @@ namespace slam
     // Run with Gauss Newton (should be default)
     gtsam::ISAM2Params params;
     params.setOptimizationParams(gtsam::ISAM2GaussNewtonParams());
+    params.setRelinearizeThreshold(0.001);
+    params.setRelinearizeSkip(1);
     double smoother_lag = 0.0;
 
     smoother_ = gtsam::IncrementalFixedLagSmoother(smoother_lag, params);
@@ -91,6 +93,7 @@ namespace slam
 
     const auto &assos = h.associations();
     POSE T_wb = estimates.at<POSE>(X(latest_pose_key_));
+    bool new_loop_closure = false;
     for (int i = 0; i < assos.size(); i++)
     {
       jcbb::Association::shared_ptr a = assos[i];
@@ -99,6 +102,7 @@ namespace slam
       POINT meas_world = T_wb * meas;
       if (a->associated())
       {
+        new_loop_closure = true;
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), *a->landmark, meas, meas_noise));
       }
       else
@@ -110,6 +114,11 @@ namespace slam
     }
 
     smoother_.update(graph_, initial_estimates_);
+    if (new_loop_closure) {
+      for (int i = 0; i < 20; i++) {
+        smoother_.update();
+      }
+    }
     estimates_ = smoother_.calculateEstimate();
 
     graph_.resize(0);

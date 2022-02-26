@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <iostream>
+#include <utility>
+
 #include "slam/types.h"
 
 #include <gtsam/base/FastVector.h>
@@ -38,7 +40,7 @@ private:
 public:
         MaximumLikelihood(const gtsam::Values &estimates, const gtsam::Marginals &marginals_, const gtsam::FastVector<slam::Measurement<POINT>> &measurements, double ic_prob, double range_threshold=1e9);
         double joint_compatability(const Hypothesis &h) const;
-        double individual_compatability(const Association &a) const;
+        std::pair<double, double> individual_compatability(const Association &a) const;
         Hypothesis associate() const;
 };
 

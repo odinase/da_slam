@@ -81,13 +81,8 @@ namespace ml
   }
 
   template<class POSE, class POINT>
-  double MaximumLikelihood<POSE, POINT>::individual_compatability(const Association &a) const
+  std::pair<double, double> MaximumLikelihood<POSE, POINT>::individual_compatability(const Association &a) const
   {
-    // Should never happen...
-    if (!a.associated())
-    {
-      return std::numeric_limits<double>::infinity();
-    }
     Eigen::VectorXd innov = a.error;
     Eigen::MatrixXd P = marginals_.jointMarginalCovariance(gtsam::KeyVector{{x_key_, *a.landmark}}).fullMatrix();
     // TODO: Fix here later
@@ -100,7 +95,13 @@ namespace ml
     Eigen::MatrixXd R = meas_noise->sigmas().array().square().matrix().asDiagonal();
     Eigen::MatrixXd S = H * P * H.transpose() + R;
 
-    return innov.transpose() * S.llt().solve(innov);
+    Eigen::LLT<Eigen::MatrixXd> chol = S.llt();
+    auto& L = chol.matrixL();
+    double log_norm_factor = L.toDenseMatrix().diagonal().array().log().sum();
+
+    double mh_dist = innov.transpose() * chol.solve(innov); 
+
+    return {mh_dist, log_norm_factor};
   }
 
   template<class POSE, class POINT>
@@ -109,13 +110,14 @@ namespace ml
     // First loop over all measurements, and find the lowest Mahalanobis distance
     gtsam::FastMap<gtsam::Key, gtsam::FastVector<std::pair<int, double>>> lmk_measurement_assos;
     gtsam::Matrix Hx, Hl;
+
     for (int i = 0; i < measurements_.size(); i++)
     {
       const auto &meas = measurements_[i].measurement;
       POINT meas_world = x_pose_ * meas;
       const auto& noise = measurements_[i].noise;
 
-      double lowest_nis = std::numeric_limits<double>::infinity();
+      double lowest_mle_cost = std::numeric_limits<double>::infinity();
 
       std::pair<int, double> smallest_innovation(-1, 0.0);
       for (const auto &l : landmark_keys_)
@@ -127,18 +129,19 @@ namespace ml
         gtsam::PoseToPointFactor<POSE, POINT> factor(x_key_, l, meas, noise);
         gtsam::Vector error = factor.evaluateError(x_pose_, lmk, Hx, Hl);
         Association a(i, l, Hx, Hl, error);
-        double nis = individual_compatability(a);
+        auto [mh_dist, log_norm_factor] = individual_compatability(a);
+        double mle_cost = mh_dist + log_norm_factor;
 
         // TODO: Refactor out things not JCBB from jcbb
-        double inv = jcbb::chi2inv(1 - ic_prob_, POINT::RowsAtCompileTime);
+        double mh_threshold = jcbb::chi2inv(1 - ic_prob_, POINT::RowsAtCompileTime);
         // Individually compatible?
-        if (nis < inv)
+        if (mh_dist < mh_threshold)
         {
           // Better association than already found?
-          if (nis < lowest_nis)
+          if (mle_cost < lowest_mle_cost)
           {
-            lowest_nis = nis;
-            smallest_innovation = {gtsam::symbolIndex(l), nis};
+            lowest_mle_cost = mle_cost;
+            smallest_innovation = {gtsam::symbolIndex(l), mle_cost};
           }
         }
       }
@@ -151,17 +154,18 @@ namespace ml
 
     // Loop over all landmarks with measurement associated with it and pick put the best one by pruning out all measurements except the best one in terms of Mahalanobis distance.
     Hypothesis h = Hypothesis::empty_hypothesis();
-    for (const auto &[l, ms] : lmk_measurement_assos)
+    for (const auto &[l, meas_candidates] : lmk_measurement_assos)
     {
-      auto p = std::min_element(ms.begin(), ms.end(), [](const auto &p1, const auto &p2)
-                                { return p1.second < p2.second; });
+      auto best_candidate = std::min_element(meas_candidates.begin(), meas_candidates.end(), [](const auto &lhs, const auto &rhs)
+                                { return lhs.second < rhs.second; });
       // Pretty redundant to do full recomputation here, but oh well
+      int best_meas = best_candidate->first;
       POINT lmk = estimates_.at<POINT>(l);
-      const auto &meas = measurements_[p->first].measurement;
-      const auto &noise = measurements_[p->first].noise;
+      const auto &meas = measurements_[best_meas].measurement;
+      const auto &noise = measurements_[best_meas].noise;
       gtsam::PoseToPointFactor<POSE, POINT> factor(x_key_, l, meas, noise);
       gtsam::Vector error = factor.evaluateError(x_pose_, lmk, Hx, Hl);
-      Association::shared_ptr a = std::make_shared<Association>(p->first, l, Hx, Hl, error);
+      Association::shared_ptr a = std::make_shared<Association>(best_meas, l, Hx, Hl, error);
       h.extend(a);
     }
     h.fill_with_unassociated_measurements(measurements_.size());
