@@ -6,6 +6,8 @@
 #include <boost/math/distributions.hpp>
 #include <deque>
 #include <iostream>
+#include <cmath>
+#include <utility>
 
 namespace da
 {
@@ -32,21 +34,49 @@ namespace da
   };
 
   template <class MEASUREMENT>
-  double individual_compatability(
+  std::pair<double, double> individual_compatability(
       const hypothesis::Association &a,
       gtsam::Key x_key,
       const gtsam::JointMarginal &joint_marginals,
       const gtsam::FastVector<MEASUREMENT> &measurements)
   {
-    Eigen::MatrixXd S = 
-      a.Hx * joint_marginals(x_key, x_key) * a.Hx.transpose() // Hx * Pxx * Hx.T
-      + a.Hl * joint_marginals(*a.landmark, x_key) * a.Hx.transpose() // Hl * Plx * Hx.T
-      + a.Hx * joint_marginals(x_key, *a.landmark) * a.Hl.transpose() // Hx * Pxl * Hl.T
-      + a.Hl * joint_marginals(*a.landmark, *a.landmark) * a.Hl.transpose(); // Hl * Pll * Hl.T
+    int rows = a.Hx.rows();
+    int cols = a.Hx.cols() + a.Hl.cols();
+    Eigen::MatrixXd H(rows, cols);
+    H << a.Hx, a.Hl;
 
-    S.diagonal() += measurements[a.measurement].noise->sigmas().array().square().matrix();
+    Eigen::MatrixXd Pxx = joint_marginals(x_key, x_key);
+    Eigen::MatrixXd Pll = joint_marginals(*a.landmark, *a.landmark);
+    Eigen::MatrixXd Pxl = joint_marginals(x_key, *a.landmark);
+    const Eigen::MatrixXd& Plx = Pxl.transpose();
 
-    return a.error.transpose() * S.llt().solve(a.error);
+    rows = Pxx.rows() + Pll.rows();
+    cols = rows;
+    
+    Eigen::MatrixXd P(rows, cols);
+    P << Pxx, Pxl,
+         Plx, Pll;
+
+    Eigen::MatrixXd R = measurements[a.measurement].noise->sigmas().array().square().matrix().asDiagonal();
+
+    Eigen::MatrixXd S = H * P * H.transpose() + R;
+
+    // Eigen::MatrixXd S = 
+      //   a.Hx * joint_marginals(x_key, x_key)             * a.Hx.transpose() // Hx * Pxx * Hx.T
+      // + a.Hl * joint_marginals(*a.landmark, x_key)       * a.Hx.transpose() // Hl * Plx * Hx.T
+      // + a.Hx * joint_marginals(x_key, *a.landmark)       * a.Hl.transpose() // Hx * Pxl * Hl.T
+      // + a.Hl * joint_marginals(*a.landmark, *a.landmark) * a.Hl.transpose(); // Hl * Pll * Hl.T
+
+    // S.diagonal() += measurements[a.measurement].noise->sigmas().array().square().matrix();
+
+    const Eigen::VectorXd& innov = a.error;
+
+    Eigen::LLT<Eigen::MatrixXd> chol = S.llt();
+    auto& U = chol.matrixL();
+    double log_norm_factor = U.toDenseMatrix().diagonal().array().log().sum();
+
+    return {innov.transpose() * chol.solve(innov), log_norm_factor};
+    // return a.error.transpose() * S.llt().solve(a.error);
   }
 
   template <class MEASUREMENT>

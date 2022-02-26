@@ -25,8 +25,11 @@ namespace da
     template <class POSE, class POINT>
     MaximumLikelihood<POSE, POINT>::MaximumLikelihood(double sigmas, double range_threshold)
         : mh_threshold_(sigmas * sigmas),
-          range_threshold_(range_threshold)
+          range_threshold_(range_threshold),
+          asso_eff_file_("/home/odinase/prog/C++/da-slam/asso_eff.txt"),
+          nis_logger_("/home/odinase/prog/C++/da-slam/nis_log.txt")
     {
+      nis_logger_ << POINT::RowsAtCompileTime << "\n";
     }
 
     template <class POSE, class POINT>
@@ -85,6 +88,7 @@ namespace da
       // If no landmarks are close enough, terminate 
       if (keys.size() == 1) {
         std::cout << "No landmarks close enough to measurements, terminating!\n";
+        asso_eff_file_ << 0 << "\n";
         return h;
       }
 
@@ -100,6 +104,8 @@ namespace da
       // Map of landmarks that are individually compatible with at least one measurement, with NIS
       gtsam::FastMap<gtsam::Key, std::vector<std::pair<int, double>>> lmk_meas_asso_candidates;
 
+      double nis_sum = 0.0;
+
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;
@@ -114,12 +120,14 @@ namespace da
           gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
           hypothesis::Association a(meas_idx, l, Hx, Hl, error);
-          double nis = individual_compatability(a, x_key, joint_marginals, measurements);
+          auto [nis, log_norm_factor] = individual_compatability(a, x_key, joint_marginals, measurements);
+
+          nis_sum += nis;
 
           // Individually compatible?
           if (nis < mh_threshold_)
           {
-            lmk_meas_asso_candidates[l].push_back({meas_idx, nis});
+            lmk_meas_asso_candidates[l].push_back({meas_idx, nis + log_norm_factor});
           }
         }
       }
@@ -177,6 +185,8 @@ namespace da
 
         double tot_reward = 0.0;
         double asso_reward = 0.0;
+        double valid_assos = 0.0;
+        double nis_sum = 0.0;
 
         for (int lmk_idx = 0; lmk_idx < num_assoed_lmks; lmk_idx++)
         {
@@ -200,12 +210,18 @@ namespace da
           gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
           Association::shared_ptr a = std::make_shared<Association>(meas_idx, l, Hx, Hl, error);
-          // double nis = individual_compatability(*a, x_key, marginals, measurements);
+          auto [nis, log_norm_factor] = individual_compatability(*a, x_key, joint_marginals, measurements);
+          nis_sum += nis;
+
           h.extend(a);
+          valid_assos++;
         }
 
         end = std::chrono::steady_clock::now();
         std::cout << "Building hypothesis from auction solution took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
+          nis_logger_ << nis_sum << " " << valid_assos << "\n";
+        asso_eff_file_ << valid_assos / double(num_measurements) << "\n";
       }
 
       // Regardless of if no or only some measurements were made, fill hypothesis with remaining unassociated measurements and return

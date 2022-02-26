@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <iostream>
+#include <fstream>
+
 #include "slam/types.h"
 
 #include <gtsam/base/FastVector.h>
@@ -32,6 +34,8 @@ namespace da
     private:
       double mh_threshold_;
       double range_threshold_;
+      std::ofstream asso_eff_file_;
+      std::ofstream nis_logger_;
 
     public:
       // typedef std::shared_ptr<MaximumLikelihood> shared_ptr;
