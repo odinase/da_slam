@@ -4,6 +4,76 @@
 
 // Basically all Hungarian algorithm code was taken from https://github.com/mcximing/hungarian-algorithm-cpp
 
+namespace da {
+
+  double chi2inv(double p, unsigned int dim)
+  {
+    boost::math::chi_squared dist(dim);
+    return quantile(dist, p);
+  }
+
+  std::vector<int> auction(const Eigen::MatrixXd& problem, double eps, uint64_t max_iterations) {
+    int m = problem.rows();
+    int n = problem.cols();
+
+    std::cout << "Starting auction with problem size (" << m << ", " << n << ")\n";
+
+    std::deque<int> unassigned_queue;
+    std::vector<int> assigned_landmarks;
+
+    // Initilize
+    for (int i = 0; i < n; i++) {
+      unassigned_queue.push_back(i);
+      assigned_landmarks.push_back(-1);
+    }
+
+    // Use Eigen vector for convenience below
+    Eigen::VectorXd prices(m);
+    for (int i = 0; i < m; i++) {
+      prices(i) = 0;
+    }
+
+    uint64_t curr_iter = 0;
+
+    while (!unassigned_queue.empty() && curr_iter < max_iterations) {
+      int l_star = unassigned_queue.front();
+      unassigned_queue.pop_front();
+
+      if (curr_iter > max_iterations) {
+        break;
+      }
+      Eigen::MatrixXd::Index i_star;
+      double val_max = (problem.col(l_star) - prices).maxCoeff(&i_star);
+
+      auto prev_owner = std::find(assigned_landmarks.begin(), assigned_landmarks.end(), i_star);
+      assigned_landmarks[l_star] = i_star;
+
+      if (prev_owner != assigned_landmarks.end()) {
+        // The item has a previous owner
+        *prev_owner = -1;
+        int pos = std::distance(assigned_landmarks.begin(), prev_owner);
+        unassigned_queue.push_back(pos);
+      }
+
+      double y = problem(i_star, l_star) - val_max;
+      prices(i_star) += y + eps;
+      curr_iter++;
+    }
+
+    if (curr_iter >= max_iterations) {
+      std::cout << "\x1B[31m" << "Auction terminated early!\n" << "\033[0m";
+    } else {
+      std::cout << "\x1B[32m" << "Auction terminated successfully after " << curr_iter << " iterations!\n" << "\033[0m";      
+    }
+
+    std::cout << "Solution from auction:\n";
+    for (int i = 0; i < assigned_landmarks.size(); i++) {
+      std::cout << "Landmark " << i << " with measurement " << assigned_landmarks[i] << "\n";
+    }
+
+    return assigned_landmarks;
+  }
+
 using namespace std;
 
 void assignmentoptimal(int *assignment, double *cost, const double *distMatrix, int nOfRows, int nOfColumns);
@@ -370,3 +440,4 @@ void step5(int *assignment, double *distMatrix, bool *starMatrix, bool *newStarM
 	/* move to step 3 */
 	step3(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim);
 }
+} // namespace da

@@ -51,18 +51,13 @@ target_link_libraries(hypothesis
 #   gtsam
 #   )
 
-# add_library(slam
-#   src/slam/slam.cpp
-# )
+add_library(data_association
+  src/data_association/DataAssociation.cpp
+)
 
-# target_link_libraries(slam
-#   jcbb
-#   gt
-#   ml
-#   # ${catkin_LIBRARIES}
-#   Eigen3::Eigen
-#   gtsam
-# )
+target_link_libraries(data_association
+  Eigen3::Eigen
+)
 
 # add_executable(slam_node
 #   src/slam/slam_node
@@ -76,9 +71,6 @@ target_link_libraries(hypothesis
 #   glog::glog
 # )
 
-add_library(hungarian
-  src/data_association/Hungarian.cpp
-)
 
 # target_link_libraries(hungarian
 #   jcbb
@@ -106,7 +98,7 @@ target_link_libraries(slam_g2o_file
   gtsam_unstable
   hypothesis
   glog::glog
-  hungarian
+  data_association
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
@@ -123,7 +115,7 @@ target_link_libraries(test_auction_method
   gtsam
   gtsam_unstable
   glog::glog
-  hungarian
+  data_association
 )
 
 set_target_properties(test_auction_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )

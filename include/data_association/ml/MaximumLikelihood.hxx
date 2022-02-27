@@ -11,8 +11,7 @@
 
 #include <chrono>
 
-
-#include "data_association/Hungarian.h"
+#include "data_association/DataAssociation.h"
 
 namespace da
 {
@@ -120,14 +119,14 @@ namespace da
           gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
           hypothesis::Association a(meas_idx, l, Hx, Hl, error);
-          auto [nis, log_norm_factor] = individual_compatability(a, x_key, joint_marginals, measurements);
+          auto [mh_dist, log_norm_factor] = individual_compatability(a, x_key, joint_marginals, measurements);
 
-          nis_sum += nis;
+          double mle_cost = mh_dist + log_norm_factor;
 
           // Individually compatible?
-          if (nis < mh_threshold_)
+          if (mh_dist < mh_threshold_)
           {
-            lmk_meas_asso_candidates[l].push_back({meas_idx, nis + log_norm_factor});
+            lmk_meas_asso_candidates[l].push_back({meas_idx, mle_cost});
           }
         }
       }
@@ -146,23 +145,27 @@ namespace da
         gtsam::Matrix cost_matrix = gtsam::Matrix::Constant(
             num_measurements + num_assoed_lmks,
             num_assoed_lmks,
-            -std::numeric_limits<double>::infinity());
+            std::numeric_limits<double>::infinity());
 
         // Fill bottom diagonal with "dummy measurements" meaning they are unassigned.
-        cost_matrix.bottomRows(num_assoed_lmks).diagonal() << gtsam::Vector::Constant(num_assoed_lmks, -10'000);
+        cost_matrix.bottomRows(num_assoed_lmks).diagonal() << gtsam::Vector::Constant(num_assoed_lmks, 10'000);
 
         // To keep track of what column in the cost matrix corresponds to what actual landmark
         std::vector<gtsam::Key> cost_mat_col_to_lmk;
 
         // Fill cost matrix based on valid associations
         int lmk_idx = 0;
+        double lowest_mle_cost = std::numeric_limits<double>::infinity();
+
         for (const auto &[lmk, meas_candidates] : lmk_meas_asso_candidates)
         {
           cost_mat_col_to_lmk.push_back(lmk);
-          for (const auto &[meas_idx, nis] : meas_candidates)
+          for (const auto &[meas_idx, mle_cost] : meas_candidates)
           {
-            // We use negative NIS to force the highest reward to be the one with the lowest nis
-            cost_matrix(meas_idx, lmk_idx) = -nis;
+            cost_matrix(meas_idx, lmk_idx) = mle_cost;
+            if (mle_cost < lowest_mle_cost) {
+              lowest_mle_cost = mle_cost;
+            }
           }
           lmk_idx++;
         }
@@ -171,10 +174,12 @@ namespace da
         end = std::chrono::steady_clock::now();
         std::cout << "Building cost matrix took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
       
-
+        std::cout << "cost matrix:\n" << cost_matrix << "\n";
         begin = std::chrono::steady_clock::now();
       
-        std::vector<int> associated_landmarks = auction(cost_matrix);
+
+        cost_matrix.array() -= lowest_mle_cost; // We subtract highest to 
+        std::vector<int> associated_landmarks = hungarian(cost_matrix);
 
 
         end = std::chrono::steady_clock::now();

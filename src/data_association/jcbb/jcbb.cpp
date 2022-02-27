@@ -19,11 +19,11 @@ namespace jcbb
   using gtsam::symbol_shorthand::L;
   using gtsam::symbol_shorthand::X;
 
-  double chi2inv(double p, unsigned int dim)
-  {
-    boost::math::chi_squared dist(dim);
-    return quantile(dist, p);
-  }
+  // double chi2inv(double p, unsigned int dim)
+  // {
+  //   boost::math::chi_squared dist(dim);
+  //   return quantile(dist, p);
+  // }
 
   bool exists(const gtsam::KeyVector &s, gtsam::Key k)
   {
