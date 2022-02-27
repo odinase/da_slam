@@ -36,7 +36,7 @@ namespace slam
     // Run with Gauss Newton (should be default)
     gtsam::ISAM2Params params;
     params.setOptimizationParams(gtsam::ISAM2GaussNewtonParams());
-    params.setRelinearizeThreshold(0.001);
+    params.setRelinearizeThreshold(0.1);
     params.setRelinearizeSkip(1);
     double smoother_lag = 0.0;
 

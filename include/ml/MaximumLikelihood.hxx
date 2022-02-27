@@ -97,7 +97,7 @@ namespace ml
 
     Eigen::LLT<Eigen::MatrixXd> chol = S.llt();
     auto& L = chol.matrixL();
-    double log_norm_factor = L.toDenseMatrix().diagonal().array().log().sum();
+    double log_norm_factor = 2.0*L.toDenseMatrix().diagonal().array().log().sum();
 
     double mh_dist = innov.transpose() * chol.solve(innov); 
 
