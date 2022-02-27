@@ -72,8 +72,8 @@ namespace da
     const Eigen::VectorXd& innov = a.error;
 
     Eigen::LLT<Eigen::MatrixXd> chol = S.llt();
-    auto& U = chol.matrixL();
-    double log_norm_factor = U.toDenseMatrix().diagonal().array().log().sum();
+    auto& L = chol.matrixL();
+    double log_norm_factor = 2.0*L.toDenseMatrix().diagonal().array().log().sum();
 
     return {innov.transpose() * chol.solve(innov), log_norm_factor};
     // return a.error.transpose() * S.llt().solve(a.error);
@@ -263,5 +263,6 @@ namespace da
 
     return assigned_landmarks;
   }
+
 
 } // namespace data_association
