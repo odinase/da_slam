@@ -264,5 +264,6 @@ namespace da
     return assigned_landmarks;
   }
 
+  std::vector<int> hungarian(const Eigen::MatrixXd &cost_matrix);
 
 } // namespace data_association
