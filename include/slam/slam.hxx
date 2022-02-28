@@ -33,9 +33,11 @@ namespace slam
     ic_prob_ = ic_prob;
     range_threshold_ = range_threshold;
 
+    std::cout << "Using ic_prob: " << ic_prob_ << "\nUsing range_threshold: " << range_threshold_ << "\n";
+
     // Run with Gauss Newton (should be default)
     gtsam::ISAM2Params params;
-    params.setOptimizationParams(gtsam::ISAM2GaussNewtonParams());
+    params.setOptimizationParams(gtsam::ISAM2DoglegParams());
     params.setRelinearizeThreshold(0.1);
     params.setRelinearizeSkip(1);
     double smoother_lag = 0.0;
