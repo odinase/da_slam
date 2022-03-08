@@ -26,9 +26,9 @@ namespace slam
 
   template<class POSE, class POINT>
   void SLAM<POSE, POINT>::initialize(double ic_prob, int optimization_rate, const gtsam::Vector &pose_prior_noise)//, const gtsam::Vector &lmk_prior_noise)
-  {
+      {
   pose_prior_noise_ = gtsam::noiseModel::Diagonal::Sigmas(pose_prior_noise);
-    // lmk_prior_noise_ = lmk_prior_noise;
+  
     ic_prob_ = ic_prob;
     optimization_rate_ = optimization_rate;
 
@@ -57,26 +57,6 @@ namespace slam
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
     estimates_.insert(X(latest_pose_key_), POSE());
 
-  //   association_method_ = association_method;
-  //   std::cout << "Using association method ";
-  //   switch (association_method)
-  //   {
-  //   case AssociationMethod::JCBB:
-  //   {
-  //     std::cout << "JCBB\n";
-  //     break;
-  //   }
-  //   case AssociationMethod::ML:
-  //   {
-  //     std::cout << "ML\n";
-  //     break;
-  //   }
-  //   case AssociationMethod::KnownDataAssociation:
-  //   {
-  //     std::cout << "Known data association\n";
-  //     break;
-  //   }
-  //   }
   }
 
   template<class POSE, class POINT>
