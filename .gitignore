@@ -1,4 +1,6 @@
 /build
 /slam_g2o_file
 /tests
+slam_g2o_file
+/tests/test_auction_method
 /logs

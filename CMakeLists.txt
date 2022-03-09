@@ -11,37 +11,34 @@ find_package(Eigen3 REQUIRED)
 set(EIGEN3_INCLUDE_DIR "/usr/local/include/gtsam/3rdparty/Eigen")
 include_directories(${EIGEN3_INCLUDE_DIR})
 
-# find_package (glog 0.6.0 REQUIRED)
+find_package (glog 0.6.0 REQUIRED)
 
 include_directories(
   eigen3
   include
 )
 
-add_library(jcbb
-  src/jcbb/jcbb.cpp
-  src/jcbb/MarginalMocks.cpp
-  src/jcbb/Hypothesis.cpp
-  src/jcbb/utils.cpp
+add_library(hypothesis
+  # src/jcbb/MarginalMocks.cpp
+  src/data_association/Hypothesis.cpp
 )
 
-target_link_libraries(jcbb
+target_link_libraries(hypothesis
   Eigen3::Eigen
   gtsam
 )
 
-# add_library(ml
-#   src/ml/MaximumLikelihood.cpp
-#   # src/jcbb/jcbb.cpp
+# add_library(jcbb
+#   src/jcbb/jcbb.cpp
+#   src/jcbb/MarginalMocks.cpp
 #   src/jcbb/Hypothesis.cpp
+#   src/jcbb/utils.cpp
 # )
 
-# target_link_libraries(ml
-#   # ${catkin_LIBRARIES}
+# target_link_libraries(jcbb
 #   Eigen3::Eigen
 #   gtsam
-#   )
-
+# )
 
 #   add_library(gt
 #   src/gt/KnownDataAssociation.cpp
@@ -79,6 +76,25 @@ target_link_libraries(jcbb
 #   glog::glog
 # )
 
+add_library(hungarian
+  src/data_association/Hungarian.cpp
+)
+
+# target_link_libraries(hungarian
+#   jcbb
+#   gt
+#   ml
+#   # ${catkin_LIBRARIES}
+#   Eigen3::Eigen
+#   gtsam
+# )
+
+
+option(HYPOTHESIS_QUALITY "Compute NIS for joint hypothesis for comparision of hypothesis quality" OFF)
+
+if (HYPOTHESIS_QUALITY)
+  add_definitions(-DHYPOTHESIS_QUALITY)
+endif()
 
 add_executable(slam_g2o_file
   src/slam/slam_g2o_file.cpp
@@ -88,8 +104,27 @@ target_link_libraries(slam_g2o_file
   Eigen3::Eigen
   gtsam
   gtsam_unstable
-  jcbb
-  # glog::glog
+  hypothesis
+  glog::glog
+  hungarian
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
+
+# Not the correct way of doing this, but whatever
+
+
+add_executable(test_auction_method
+  tests/test_auction_method.cpp
+)
+
+target_link_libraries(test_auction_method
+  Eigen3::Eigen
+  gtsam
+  gtsam_unstable
+  glog::glog
+  hungarian
+)
+
+set_target_properties(test_auction_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
+set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})

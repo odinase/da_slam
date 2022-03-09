@@ -10,7 +10,8 @@
 #include <vector>
 
 #include "slam/types.h"
-#include "jcbb/Hypothesis.h"
+#include "data_association/Hypothesis.h"
+#include "data_association/DataAssociation.h"
 
 namespace slam
 {
@@ -18,26 +19,18 @@ namespace slam
     using gtsam::symbol_shorthand::L;
     using gtsam::symbol_shorthand::X;
 
-    enum class AssociationMethod
-    {
-        JCBB,
-        ML,
-        KnownDataAssociation
-    };
-
     template <class POSE, class POINT>
     class SLAM
     {
     private:
         gtsam::NonlinearFactorGraph graph_;
-        gtsam::IncrementalFixedLagSmoother smoother_;
+        gtsam::ISAM2 isam_;
 
-        gtsam::Values estimates_;
         gtsam::Values initial_estimates_;
         gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_;
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
 
-        // gtsam::FastVector<jcbb::Hypothesis> hypotheses_;
+        std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association_;
 
         unsigned long int latest_pose_key_;
         POSE latest_pose_;
@@ -48,25 +41,20 @@ namespace slam
 
         void addOdom(const Odometry<POSE> &odom);
         gtsam::FastVector<POINT> predictLandmarks() const;
-
-        double ic_prob_;
-        double range_threshold_;
+        void log_timestep(const Timestep<POSE, POINT>& timestep, const da::hypothesis::Hypothesis& h);
 
     public:
         SLAM();
 
         // We need to initialize the graph with priors on the first pose and landmark
         void optimize();
-        const gtsam::Values& currentEstimates() const { return estimates_; }
+        const gtsam::Values currentEstimates() const { return isam_.calculateEstimate(); }
         void processTimestep(const Timestep<POSE, POINT>& timestep);
-        void initialize(double ic_prob, const gtsam::Vector &pose_prior_noise, double range_threshold); //, const gtsam::Vector &lmk_prior_noise);
+        void initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
-        const gtsam::NonlinearFactorGraph& getGraph() const { return smoother_.getFactors(); }
-        double error() const { return smoother_.getFactors().error(estimates_); }
-
-        // const gtsam::FastVector<jcbb::Hypothesis> &getChosenHypotheses() const { return hypotheses_; }
-        // AssociationMethod getAssociationMethod() const { return association_method_; }
+        const gtsam::NonlinearFactorGraph& getGraph() const { return isam_.getFactorsUnsafe(); }
+        double error() const { return isam_.getFactorsUnsafe().error(currentEstimates()); }
     };
 
     using SLAM3D = SLAM<gtsam::Pose3, gtsam::Point3>;

@@ -11,88 +11,27 @@
 #include <tuple>
 #include <algorithm>
 
-// #include <glog/logging.h>
+#include <glog/logging.h>
 
 // #include "slam/slam_g2o_file.h"
 #include "slam/utils_g2o.h"
 #include "slam/slam.h"
 #include "slam/types.h"
+#include "data_association/ml/MaximumLikelihood.h"
 
 using gtsam::symbol_shorthand::L; // gtsam/slam/dataset.cpp
 using namespace std;
 using namespace gtsam;
 
-// SLAM_G2O_file::SLAM_G2O_file(const std::string& filename) : g2o_filename_(filename) {
-//     boost::tie()
-// }
-
-template <class POSE, class POINT>
-std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
-    vector<boost::shared_ptr<BetweenFactor<POSE>>> &odomFactors,
-    vector<boost::shared_ptr<PoseToPointFactor<POSE, POINT>>> &measFactors)
-{
-    // Sort factors based on robot pose key, so that we can simply check when in time they should appear
-    std::sort(
-        odomFactors.begin(),
-        odomFactors.end(),
-        [](const auto &lhs, const auto &rhs)
-        {
-            return symbolIndex(lhs->key1()) < symbolIndex(rhs->key1());
-        });
-    std::sort(
-        measFactors.begin(),
-        measFactors.end(),
-        [](const auto &lhs, const auto &rhs)
-        {
-            return symbolIndex(lhs->key1()) < symbolIndex(rhs->key1());
-        });
-
-    size_t odoms = odomFactors.size();
-    uint64_t num_timesteps = odoms + 1; // There will always be one more robot pose than odometry factors since they're all between
-    vector<slam::Timestep<POSE, POINT>> timesteps;
-    size_t curr_measurement = 0;
-    size_t tot_num_measurements = measFactors.size();
-    timesteps.reserve(num_timesteps);
-    for (uint64_t t = 0; t < num_timesteps; t++)
-    {
-        slam::Timestep<POSE, POINT> timestep;
-        timestep.step = t;
-        // Initialize first odom as identity, as we haven't moved yet
-        if (t > 0)
-        {
-            timestep.odom.odom = odomFactors[t - 1]->measured();
-            timestep.odom.noise = odomFactors[t - 1]->noiseModel();
-        }
-        else
-        {
-            timestep.odom.odom = POSE();
-        }
-
-        // Extract measurements from current pose
-        while (curr_measurement < tot_num_measurements && symbolIndex(measFactors[curr_measurement]->key1()) == t)
-        {
-            slam::Measurement<POINT> meas;
-            meas.measurement = measFactors[curr_measurement]->measured();
-            meas.noise = measFactors[curr_measurement]->noiseModel();
-            timestep.measurements.push_back(meas);
-            curr_measurement++;
-        }
-
-        timesteps.push_back(timestep);
-    }
-
-    return timesteps;
-}
 
 int main(int argc, char **argv)
 {
-    // google::InitGoogleLogging(argv[0]);
-    // google::ParseCommandLineFlags(&argc, &argv, true);
-    // google::InstallFailureSignalHandler();
+    google::InitGoogleLogging(argv[0]);
+    google::InstallFailureSignalHandler();
     // default
     string g2oFile = findExampleDataFile("noisyToyGraph.txt");
     bool is3D = false;
-    double ic_prob = 1-0.9707091134651118; // chi2.cdf(3**2, 2)
+    double sigmas = 3.0;
     std::string output_file;
     double range_threshold = 1e9;
     // Parse user's inputs
@@ -105,10 +44,6 @@ int main(int argc, char **argv)
         is3D = atoi(argv[2]);
         std::cout << "is3D: " << is3D << std::endl;
     }
-    if (is3D)
-    {
-        ic_prob = 1-0.9888910034617577; // chi2.cdf(3**2, 3)
-    }
     if (argc > 3)
     {
         range_threshold = atof(argv[3]);
@@ -116,8 +51,8 @@ int main(int argc, char **argv)
     }
     if (argc > 4)
     {
-        ic_prob = atof(argv[4]);
-        std::cout << "ic prob: " << ic_prob << std::endl;
+        sigmas = atof(argv[4]);
+        std::cout << "sigmas: " << sigmas << std::endl;
     }
     if (argc > 5)
     {
@@ -151,7 +86,8 @@ int main(int argc, char **argv)
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::SLAM3D slam_sys{};
-            slam_sys.initialize(ic_prob, pose_prior_noise, range_threshold);
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
+            slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
             for (const auto &timestep : timesteps)
             {
@@ -171,6 +107,9 @@ int main(int argc, char **argv)
             Values::shared_ptr initial2;
             boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
             writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
+            ofstream os("/home/odinase/prog/C++/da-slam/graph.txt");
+            slam_sys.getGraph().saveGraph(os, slam_sys.currentEstimates());
+            os.close();
         }
         else
         {
@@ -180,7 +119,8 @@ int main(int argc, char **argv)
             vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
             cout << "Done converting into timesteps!\n";
             slam::SLAM2D slam_sys{};
-            slam_sys.initialize(ic_prob, pose_prior_noise, range_threshold);
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
+            slam_sys.initialize(pose_prior_noise, data_asso);
             cout << "SLAM system initialized!\n";
             int tot_timesteps = timesteps.size();
             for (const auto &timestep : timesteps)
@@ -191,8 +131,8 @@ int main(int argc, char **argv)
                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
                 avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
                 cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
-                cout << "Duration: " << duration << " seconds\n"
-                     << "Average time one iteration: " << avg_time << " seconds\n";
+                // cout << "Duration: " << duration << " seconds\n"
+                //      << "Average time one iteration: " << avg_time << " seconds\n";
                 total_time += duration;
                 final_error = slam_sys.error();
                 estimates = slam_sys.currentEstimates();
@@ -201,6 +141,10 @@ int main(int argc, char **argv)
             Values::shared_ptr initial2;
             boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
             writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
+                        ofstream os("/home/odinase/prog/C++/da-slam/graph.txt");
+            slam_sys.getGraph().saveGraph(os, slam_sys.currentEstimates());
+            os.close();
+
         }
     }
     catch (gtsam::IndeterminantLinearSystemException &indetErr)

@@ -4,9 +4,11 @@
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/inference/Key.h>
 
-#include "jcbb/Hypothesis.h"
+#include "data_association/Hypothesis.h"
 
-namespace jcbb
+namespace da {
+
+namespace hypothesis
 {
     Association::Association(int m) : measurement(m), landmark({}) {}
     Association::Association(int m, gtsam::Key l, const gtsam::Matrix &Hx, const gtsam::Matrix &Hl, const gtsam::Vector &error) : measurement(m), landmark(l), Hx(Hx), Hl(Hl), error(error) {}
@@ -135,4 +137,5 @@ namespace jcbb
         std::sort(assos_.begin(), assos_.end());
     }
 
-} // namespace jcbb
+} // namespace hypothesis
+} // namespace da

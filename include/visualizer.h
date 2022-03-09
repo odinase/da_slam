@@ -2,10 +2,7 @@
 #define VISUALIZER_H
 
 
-#include <ros/ros.h>
-
-
-class VisualizerNode {
+class Visualizer {
     public:
     VisualizerNode(const ros::NodeHandle& nh);
     private:
