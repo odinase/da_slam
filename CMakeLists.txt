@@ -28,28 +28,6 @@ target_link_libraries(hypothesis
   gtsam
 )
 
-# add_library(jcbb
-#   src/jcbb/jcbb.cpp
-#   src/jcbb/MarginalMocks.cpp
-#   src/jcbb/Hypothesis.cpp
-#   src/jcbb/utils.cpp
-# )
-
-# target_link_libraries(jcbb
-#   Eigen3::Eigen
-#   gtsam
-# )
-
-#   add_library(gt
-#   src/gt/KnownDataAssociation.cpp
-#   src/jcbb/Hypothesis.cpp
-# )
-
-# target_link_libraries(gt
-#   # ${catkin_LIBRARIES}
-#   Eigen3::Eigen
-#   gtsam
-#   )
 
 add_library(data_association
   src/data_association/DataAssociation.cpp
@@ -58,28 +36,6 @@ add_library(data_association
 target_link_libraries(data_association
   Eigen3::Eigen
 )
-
-# add_executable(slam_node
-#   src/slam/slam_node
-# )
-
-# target_link_libraries(slam_node
-#   ${catkin_LIBRARIES}
-#   slam
-#   gtsam
-#   Eigen3::Eigen
-#   glog::glog
-# )
-
-
-# target_link_libraries(hungarian
-#   jcbb
-#   gt
-#   ml
-#   # ${catkin_LIBRARIES}
-#   Eigen3::Eigen
-#   gtsam
-# )
 
 
 option(HYPOTHESIS_QUALITY "Compute NIS for joint hypothesis for comparision of hypothesis quality" OFF)
@@ -105,7 +61,6 @@ set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_
 
 # Not the correct way of doing this, but whatever
 
-
 add_executable(test_auction_method
   tests/test_auction_method.cpp
 )
@@ -119,3 +74,18 @@ target_link_libraries(test_auction_method
 )
 
 set_target_properties(test_auction_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
+
+
+add_executable(test_hungarian_method
+  tests/test_hungarian_method.cpp
+)
+
+target_link_libraries(test_hungarian_method
+  Eigen3::Eigen
+  gtsam
+  gtsam_unstable
+  glog::glog
+  data_association
+)
+
+set_target_properties(test_hungarian_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )

@@ -30,7 +30,6 @@ using namespace gtsam;
 int main(int argc, char **argv)
 {
     google::InitGoogleLogging(argv[0]);
-    google::ParseCommandLineFlags(&argc, &argv, true);
     google::InstallFailureSignalHandler();
     // default
     string g2oFile = findExampleDataFile("noisyToyGraph.txt");
