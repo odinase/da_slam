@@ -84,6 +84,7 @@ namespace slam
   template <class POSE, class POINT>
   void SLAM<POSE, POINT>::processTimestep(const Timestep<POSE, POINT> &timestep)
   {
+    // std::cout << "\n\n";
     if (timestep.step > 0)
     {
       addOdom(timestep.odom);
@@ -92,6 +93,7 @@ namespace slam
     // We have no measurements to associate, so terminate early
     if (timestep.measurements.size() == 0)
     {
+      std::cout << "No measurements to associate, so returning now...\n";
       return;
     }
 
@@ -105,15 +107,18 @@ namespace slam
     // We have landmarks to associate
     if (latest_landmark_key_ > 0)
     {
+      std::cout << "We have landmarks to check, so run association.\n";
       h = data_association_->associate(estimates, marginals, timestep.measurements);
     }
     // No landmarks, so no measurements can be associated
     else
     {
+      std::cout << "No associations yet, so construct unassociated hypothesis.\n";
       h.fill_with_unassociated_measurements(timestep.measurements.size());
     }
 
     const auto &assos = h.associations();
+    std::cout << "There are " << assos.size() << " associations\n";
     POSE T_wb = estimates.at<POSE>(X(latest_pose_key_));
     int associated_measurements = 0;
     bool new_loop_closure = false;
@@ -127,10 +132,12 @@ namespace slam
       {
         new_loop_closure = true;
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), *a->landmark, meas, meas_noise));
+        // std::cout << "Adding association between pose " << X(latest_pose_key_) << " and landmark " << *a->landmark << "\n"; 
         associated_measurements++;
       }
       else
       {
+        // std::cout << "Adding new landmark " << L(latest_landmark_key_) << "\n";
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), L(latest_landmark_key_), meas, meas_noise));
         initial_estimates_.insert(L(latest_landmark_key_), meas_world);
         incrementLatestLandmarkKey();
@@ -154,6 +161,8 @@ namespace slam
 
     graph_.resize(0);
     initial_estimates_.clear();
+
+    // std::cout << "\n";
   }
 
   template <class POSE, class POINT>

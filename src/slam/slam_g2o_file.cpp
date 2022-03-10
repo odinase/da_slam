@@ -49,13 +49,13 @@ int main(int argc, char **argv)
     }
     if (argc > 3)
     {
-        range_threshold = atof(argv[3]);
-        std::cout << "range_threshold: " << range_threshold << std::endl;
+        sigmas = atof(argv[3]);
+        std::cout << "sigmas: " << sigmas << std::endl;
     }
     if (argc > 4)
     {
-        sigmas = atof(argv[4]);
-        std::cout << "sigmas: " << sigmas << std::endl;
+        range_threshold = atof(argv[4]);
+        std::cout << "range_threshold: " << range_threshold << std::endl;
     }
     if (argc > 5)
     {

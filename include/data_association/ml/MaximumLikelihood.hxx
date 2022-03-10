@@ -75,6 +75,7 @@ namespace da
             // Key not already in vector
             if (std::find(keys.begin(), keys.end(), l) == keys.end())
             {
+              // std::cout << "Adding landmark " << l << " to keys\n";
               keys.push_back(l);
             }
           }
@@ -84,8 +85,9 @@ namespace da
       end = std::chrono::steady_clock::now();
       std::cout << "Building key vector took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
 
-      // If no landmarks are close enough, terminate 
-      if (keys.size() == 1) {
+      // If no landmarks are close enough, terminate
+      if (keys.size() == 1)
+      {
         std::cout << "No landmarks close enough to measurements, terminating!\n";
         asso_eff_file_ << 0 << "\n";
         return h;
@@ -102,8 +104,6 @@ namespace da
 
       // Map of landmarks that are individually compatible with at least one measurement, with NIS
       gtsam::FastMap<gtsam::Key, std::vector<std::pair<int, double>>> lmk_meas_asso_candidates;
-
-      double nis_sum = 0.0;
 
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
@@ -126,6 +126,8 @@ namespace da
           // Individually compatible?
           if (mh_dist < mh_threshold_)
           {
+            // std::cout << "mh dist " << mh_dist << " and log_norm_factor " << log_norm_factor << "\n";
+            // std::cout << "Adding cost " << mle_cost << " to candidates\n";
             lmk_meas_asso_candidates[l].push_back({meas_idx, mle_cost});
           }
         }
@@ -143,12 +145,12 @@ namespace da
       {
         // Build cost matrix
         gtsam::Matrix cost_matrix = gtsam::Matrix::Constant(
-            num_measurements + num_assoed_lmks,
-            num_assoed_lmks,
+            num_measurements,
+            num_assoed_lmks + num_measurements,
             std::numeric_limits<double>::infinity());
 
         // Fill bottom diagonal with "dummy measurements" meaning they are unassigned.
-        cost_matrix.bottomRows(num_assoed_lmks).diagonal() << gtsam::Vector::Constant(num_assoed_lmks, 10'000);
+        cost_matrix.rightCols(num_measurements).diagonal().array() = 10'000;
 
         // To keep track of what column in the cost matrix corresponds to what actual landmark
         std::vector<gtsam::Key> cost_mat_col_to_lmk;
@@ -162,6 +164,7 @@ namespace da
           cost_mat_col_to_lmk.push_back(lmk);
           for (const auto &[meas_idx, mle_cost] : meas_candidates)
           {
+            // std::cout << "Adding cost " << mle_cost << " to cost matrix\n";
             cost_matrix(meas_idx, lmk_idx) = mle_cost;
             if (mle_cost < lowest_mle_cost) {
               lowest_mle_cost = mle_cost;
@@ -170,21 +173,36 @@ namespace da
           lmk_idx++;
         }
 
-
         end = std::chrono::steady_clock::now();
         std::cout << "Building cost matrix took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-      
-        std::cout << "cost matrix:\n" << cost_matrix << "\n";
+
+        // std::cout << "cost matrix:\n"
+        //           << cost_matrix << "\n";
+
+        cost_matrix.array() -= lowest_mle_cost; // We subtract lowest to ensure all costs are nonnegative
+
+        // std::cout << "cost matrix after:\n"
+        //           << cost_matrix << "\n";
         begin = std::chrono::steady_clock::now();
-      
 
-        cost_matrix.array() -= lowest_mle_cost; // We subtract highest to 
-        std::vector<int> associated_landmarks = hungarian(cost_matrix);
-
+        std::vector<int> associated_measurements = hungarian(cost_matrix);
 
         end = std::chrono::steady_clock::now();
-        std::cout << "Auction algorithm took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-      
+        std::cout << "Hungarian algorithm took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+
+        for (int m = 0; m < associated_measurements.size(); m++)
+        {
+          std::cout << "Measurement " << m << " associated with ";
+          if (associated_measurements[m] < num_assoed_lmks)
+          {
+            std::cout << " landmark " << associated_measurements[m];
+          }
+          else
+          {
+            std::cout << "no landmark";
+          }
+          std::cout << "\n";
+        }
 
         begin = std::chrono::steady_clock::now();
 
@@ -193,16 +211,17 @@ namespace da
         double valid_assos = 0.0;
         double nis_sum = 0.0;
 
-        for (int lmk_idx = 0; lmk_idx < num_assoed_lmks; lmk_idx++)
+        for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
         {
-          int meas_idx = associated_landmarks[lmk_idx];
+          int lmk_idx = associated_measurements[meas_idx];
           tot_reward += cost_matrix(meas_idx, lmk_idx);
-          if (meas_idx == -1 || meas_idx >= num_measurements)
+          if (meas_idx == -1 || lmk_idx >= num_assoed_lmks)
           {
-            if (meas_idx == -1) {
-              std::cout << "Landmark l" << gtsam::symbolIndex(cost_mat_col_to_lmk[lmk_idx]) << " associated to -1?\n";
+            if (meas_idx == -1)
+            {
+              std::cout << "Measurement m associated to " << gtsam::symbolIndex(cost_mat_col_to_lmk[lmk_idx]) << " associated to -1?\n";
             }
-            continue; // Landmark associated with dummy measurement, so skip
+            continue; // Measurement associated with dummy landmark, so skip
           }
           gtsam::Key l = cost_mat_col_to_lmk[lmk_idx];
           POINT lmk = estimates.at<POINT>(l);
@@ -225,13 +244,12 @@ namespace da
         end = std::chrono::steady_clock::now();
         std::cout << "Building hypothesis from auction solution took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
 
-          nis_logger_ << nis_sum << " " << valid_assos << "\n";
+        nis_logger_ << nis_sum << " " << valid_assos << "\n";
         asso_eff_file_ << valid_assos / double(num_measurements) << "\n";
       }
 
       // Regardless of if no or only some measurements were made, fill hypothesis with remaining unassociated measurements and return
       h.fill_with_unassociated_measurements(num_measurements);
-
 
 // This computation is not needed right now
 #ifdef HYPOTHESIS_QUALITY

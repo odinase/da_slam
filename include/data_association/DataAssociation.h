@@ -50,7 +50,7 @@ namespace da
     Eigen::MatrixXd Pxx = joint_marginals(x_key, x_key);
     Eigen::MatrixXd Pll = joint_marginals(*a.landmark, *a.landmark);
     Eigen::MatrixXd Pxl = joint_marginals(x_key, *a.landmark);
-    const Eigen::MatrixXd& Plx = Pxl.transpose();
+    const auto& Plx = Pxl.transpose();
 
     rows = Pxx.rows() + Pll.rows();
     cols = rows;

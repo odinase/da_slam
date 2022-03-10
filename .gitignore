@@ -3,3 +3,5 @@ slam_g2o_file
 /tests/test_auction_method
 /tests/test_hungarian_method
 /logs
+*.txt
+!CMakeLists.txt
