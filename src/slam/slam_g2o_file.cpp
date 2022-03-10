@@ -77,6 +77,7 @@ int main(int argc, char **argv)
     std::chrono::high_resolution_clock::time_point end_t;
     double final_error;
     Values estimates;
+    bool caught_exception = false;
     try
     {
         if (is3D)
@@ -150,26 +151,34 @@ int main(int argc, char **argv)
     { // when run in terminal: tbb::captured_exception
         std::cout << "Optimization failed" << std::endl;
         std::cout << indetErr.what() << std::endl;
+        if (argc > 5) {
+            string other_msg = "None";
+            saveException(output_file, std::string("ExceptionML.txt"), indetErr.what(), other_msg);
+        }
         NonlinearFactorGraph::shared_ptr graphNoKernel;
         Values::shared_ptr initial2;
         boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
         estimates = *initial2;
+        caught_exception = true;
     }
     if (argc < 5)
     {
+        if (caught_exception) {cout << "exception caught! printing odometry" << endl;}
         estimates.print("results");
     }
     else
     {
-        std::cout << "Writing results to file: " << output_file << std::endl;
-        NonlinearFactorGraph::shared_ptr graphNoKernel;
-        Values::shared_ptr initial2;
-        boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
-        writeG2o(*graphNoKernel, estimates,
-                 output_file); // can save pose, ldmk, odom not ldmk measurements
-        saveGraphErrors(output_file, std::string("maximum_likelihood"), vector<double>{final_error});
-        saveVector(output_file, std::string("errorsGraph.txt"), vector<double>{final_error});
-        saveVector(output_file, std::string("runTime.txt"), vector<double>{total_time});
-        std::cout << "done! " << std::endl;
+        if (!caught_exception) {
+            std::cout << "Writing results to file: " << output_file << std::endl;
+            NonlinearFactorGraph::shared_ptr graphNoKernel;
+            Values::shared_ptr initial2;
+            boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
+            writeG2o(*graphNoKernel, estimates,
+                     output_file); // can save pose, ldmk, odom not ldmk measurements
+            saveGraphErrors(output_file, std::string("maximum_likelihood"), vector<double>{final_error});
+            saveVector(output_file, std::string("errorsGraph.txt"), vector<double>{final_error});
+            saveVector(output_file, std::string("runTime.txt"), vector<double>{total_time});
+            std::cout << "done! " << std::endl;
+        }
     }
 }

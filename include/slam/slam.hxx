@@ -39,13 +39,10 @@ namespace slam
     // Run with Gauss Newton (should be default)
     gtsam::ISAM2Params params;
     params.setOptimizationParams(gtsam::ISAM2GaussNewtonParams());
-    // params.setOptimizationParams(gtsam::ISAM2DoglegParams());
     params.setRelinearizeThreshold(0.1);
     params.setRelinearizeSkip(1);
-    // double smoother_lag = 0.0;
 
     isam_ = gtsam::ISAM2(params);
-    // isam_ = gtsam::ISAM2(params);
 
     // Add prior on first pose
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
