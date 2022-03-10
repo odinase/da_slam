@@ -66,7 +66,7 @@ add_executable(test_auction_method
 )
 
 target_link_libraries(test_auction_method
-  Eigen3::Eigen
+  Eigen3::Eigenexport MESA_LOADER_DRIVER_OVERRIDE=i965; matla
   gtsam
   gtsam_unstable
   glog::glog
