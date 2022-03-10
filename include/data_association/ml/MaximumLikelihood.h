@@ -2,14 +2,10 @@
 #define MAXIMUM_LIKELIHOOD_H
 
 #include <vector>
-#include <queue>
 #include <limits>
-#include <eigen3/Eigen/Core>
+#include <Eigen/Core>
 #include <numeric>
-#include <unordered_set>
-#include <unordered_map>
 #include <iostream>
-#include <fstream>
 
 #include "slam/types.h"
 
@@ -23,7 +19,6 @@ namespace da
 {
   namespace ml
   {
-
     using hypothesis::Association;
     using hypothesis::Hypothesis;
 
@@ -34,12 +29,9 @@ namespace da
     private:
       double mh_threshold_;
       double range_threshold_;
-      std::ofstream asso_eff_file_;
-      std::ofstream nis_logger_;
 
     public:
-      // typedef std::shared_ptr<MaximumLikelihood> shared_ptr;
-      MaximumLikelihood(double sigmas, double range_threshold = 1e9);
+      MaximumLikelihood(double sigmas, double range_threshold = std::numeric_limits<double>::infinity());
       virtual hypothesis::Hypothesis associate(
           const gtsam::Values &estimates,
           const gtsam::Marginals &marginals,

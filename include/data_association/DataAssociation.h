@@ -18,9 +18,7 @@ namespace da
   class DataAssociation
   {
   public:
-    // using shared_ptr = std::shared_ptr<DataAssociation<MEASUREMENT>>;
-    // using unique_ptr = std::unique_ptr<DataAssociation<MEASUREMENT>>;
-
+  
     virtual hypothesis::Hypothesis associate(
         const gtsam::Values &estimates,
         const gtsam::Marginals &marginals,
@@ -63,14 +61,6 @@ namespace da
 
     Eigen::MatrixXd S = H * P * H.transpose() + R;
 
-    // Eigen::MatrixXd S = 
-      //   a.Hx * joint_marginals(x_key, x_key)             * a.Hx.transpose() // Hx * Pxx * Hx.T
-      // + a.Hl * joint_marginals(*a.landmark, x_key)       * a.Hx.transpose() // Hl * Plx * Hx.T
-      // + a.Hx * joint_marginals(x_key, *a.landmark)       * a.Hl.transpose() // Hx * Pxl * Hl.T
-      // + a.Hl * joint_marginals(*a.landmark, *a.landmark) * a.Hl.transpose(); // Hl * Pll * Hl.T
-
-    // S.diagonal() += measurements[a.measurement].noise->sigmas().array().square().matrix();
-
     const Eigen::VectorXd& innov = a.error;
 
     Eigen::LLT<Eigen::MatrixXd> chol = S.llt();
@@ -78,7 +68,6 @@ namespace da
     double log_norm_factor = 2.0*L.toDenseMatrix().diagonal().array().log().sum();
 
     return {innov.transpose() * chol.solve(innov), log_norm_factor};
-    // return a.error.transpose() * S.llt().solve(a.error);
   }
 
   template <class MEASUREMENT>

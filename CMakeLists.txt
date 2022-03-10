@@ -18,6 +18,49 @@ include_directories(
   include
 )
 
+### Options
+
+
+option(HYPOTHESIS_QUALITY "Compute NIS for joint hypothesis for comparision of hypothesis quality" OFF)
+
+if (HYPOTHESIS_QUALITY)
+  add_definitions(-DHYPOTHESIS_QUALITY)
+  message("HYPOTHESIS_QUALITY = ON")
+else()
+  message("HYPOTHESIS_QUALITY = OFF")
+endif()
+
+option(PROFILING "Poor man's profiling of snippets of code, where added." OFF)
+
+if (PROFILING)
+  add_definitions(-DPROFILING)
+  message("PROFILING = ON")
+else()
+  message("PROFILING = OFF")  
+endif()
+
+option(LOGGING "Log statistics about where the SLAM system is, what it's doing and results" OFF)
+
+if (LOGGING)
+  add_definitions(-DLOGGING)
+  message("LOGGING = ON")
+else()
+  message("LOGGING = OFF")  
+endif()
+
+option(HEARTBEAT "Print periodically how far the SLAM system has come through the dataset" ON)
+
+if (HEARTBEAT)
+  add_definitions(-DHEARTBEAT)
+  message("HEARTBEAT = ON")
+else()
+  message("HEARTBEAT = OFF")  
+endif()
+
+
+### Libraries
+
+
 add_library(hypothesis
   # src/jcbb/MarginalMocks.cpp
   src/data_association/Hypothesis.cpp
@@ -36,13 +79,6 @@ add_library(data_association
 target_link_libraries(data_association
   Eigen3::Eigen
 )
-
-
-option(HYPOTHESIS_QUALITY "Compute NIS for joint hypothesis for comparision of hypothesis quality" OFF)
-
-if (HYPOTHESIS_QUALITY)
-  add_definitions(-DHYPOTHESIS_QUALITY)
-endif()
 
 add_executable(slam_g2o_file
   src/slam/slam_g2o_file.cpp

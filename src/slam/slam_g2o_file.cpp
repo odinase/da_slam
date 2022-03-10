@@ -71,7 +71,9 @@ int main(int argc, char **argv)
     Values::shared_ptr initial;
     boost::tie(graph, initial) = readG2owithLmks(g2oFile, is3D, "none");
     auto [odomFactorIdx, measFactorIdx] = findFactors(odomFactors2d, odomFactors3d, measFactors2d, measFactors3d, graph);
+#ifdef LOGGING
     double avg_time = 0.0;
+#endif
     double total_time = 0.0;
     std::chrono::high_resolution_clock::time_point start_t;
     std::chrono::high_resolution_clock::time_point end_t;
@@ -95,10 +97,14 @@ int main(int argc, char **argv)
                 slam_sys.processTimestep(timestep);
                 end_t = std::chrono::high_resolution_clock::now();
                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
+#ifdef LOGGING
                 avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
                 cout << "Duration: " << duration << " seconds\n"
                      << "Average time one iteration: " << avg_time << " seconds\n";
+#endif
+#ifdef HEARTBEAT
                 cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
+#endif
                 total_time += duration;
                 final_error = slam_sys.error();
                 estimates = slam_sys.currentEstimates();
@@ -115,13 +121,10 @@ int main(int argc, char **argv)
         {
             gtsam::Vector pose_prior_noise = Vector3(1e-6, 1e-6, 1e-8);
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
-            cout << "Start converting into timesteps!\n";
             vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
-            cout << "Done converting into timesteps!\n";
             slam::SLAM2D slam_sys{};
             std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
             slam_sys.initialize(pose_prior_noise, data_asso);
-            cout << "SLAM system initialized!\n";
             int tot_timesteps = timesteps.size();
             for (const auto &timestep : timesteps)
             {
@@ -129,10 +132,14 @@ int main(int argc, char **argv)
                 slam_sys.processTimestep(timestep);
                 end_t = std::chrono::high_resolution_clock::now();
                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
+#ifdef LOGGING
                 avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
+                cout << "Duration: " << duration << " seconds\n"
+                     << "Average time one iteration: " << avg_time << " seconds\n";
+#endif
+#ifdef HEARTBEAT
                 cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
-                // cout << "Duration: " << duration << " seconds\n"
-                //      << "Average time one iteration: " << avg_time << " seconds\n";
+#endif
                 total_time += duration;
                 final_error = slam_sys.error();
                 estimates = slam_sys.currentEstimates();
