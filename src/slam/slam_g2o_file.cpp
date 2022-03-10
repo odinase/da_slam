@@ -23,9 +23,6 @@ using gtsam::symbol_shorthand::L; // gtsam/slam/dataset.cpp
 using namespace std;
 using namespace gtsam;
 
-// SLAM_G2O_file::SLAM_G2O_file(const std::string& filename) : g2o_filename_(filename) {
-//     boost::tie()
-// }
 
 int main(int argc, char **argv)
 {
