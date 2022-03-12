@@ -94,6 +94,7 @@ int main(int argc, char **argv)
 
     bool early_stop = false;
     bool next_timestep = true;
+    bool enable_stepping = true;
 
     try
     {
@@ -167,7 +168,9 @@ int main(int argc, char **argv)
                     total_time += duration;
                     final_error = slam_sys.error();
                     estimates = slam_sys.currentEstimates();
-                    next_timestep = false;
+                    if (enable_stepping) {
+                        next_timestep = false;
+                    }
                 }
 
                 const auto& graph = slam_sys.getGraph();
@@ -175,7 +178,13 @@ int main(int argc, char **argv)
 
                 ImGui::Begin("Status");
                 viz->progress_bar(step, tot_timesteps);
-                next_timestep = ImGui::Button("Next timestep");
+                ImGui::Checkbox("Enable stepping", &enable_stepping);
+                if (enable_stepping) {
+                    next_timestep = ImGui::Button("Next timestep");
+                } else {
+                    next_timestep = true;
+                }
+                
                 ImGui::End();
 
                 viz->render();
