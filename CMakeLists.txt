@@ -4,22 +4,29 @@ project(slam)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
 
+find_package(glfw3 REQUIRED)
+
+set(OpenGL_GL_PREFERENCE GLVND)
+find_package(OpenGL 3 REQUIRED)
+
 find_package(GTSAM REQUIRED) # Uses installed package
-# include_directories(${GTSAM_INCLUDE_DIR})
 
 find_package(Eigen3 REQUIRED)
 set(EIGEN3_INCLUDE_DIR "/usr/local/include/gtsam/3rdparty/Eigen")
-include_directories(${EIGEN3_INCLUDE_DIR})
 
 find_package (glog 0.6.0 REQUIRED)
 
 include_directories(
   eigen3
   include
+  3rdparty/imgui
+  3rdparty/implot
+  3rdparty/imgui/backends
+  ${OPENGL_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
 )
 
 ### Options
-
 
 option(HYPOTHESIS_QUALITY "Compute NIS for joint hypothesis for comparision of hypothesis quality" OFF)
 
@@ -61,8 +68,51 @@ endif()
 ### Libraries
 
 
+add_library(imgui_backend
+    3rdparty/imgui/backends/imgui_impl_glfw.cpp
+    3rdparty/imgui/backends/imgui_impl_opengl3.cpp
+)
+
+add_library(imgui
+    3rdparty/imgui/imgui_demo.cpp
+    3rdparty/imgui/imgui_draw.cpp
+    3rdparty/imgui/imgui_tables.cpp
+    3rdparty/imgui/imgui_widgets.cpp
+    3rdparty/imgui/imgui.cpp
+)
+
+target_link_libraries(imgui
+    imgui_backend
+)
+
+add_library(implot
+    3rdparty/implot/implot_demo.cpp
+    3rdparty/implot/implot_items.cpp
+    3rdparty/implot/implot.cpp
+)
+
+target_link_libraries(implot
+    imgui_backend
+    imgui
+)
+
+add_library(visualizer
+    src/Visualizer.cpp
+)
+
+target_link_libraries(visualizer
+    imgui_backend
+    imgui
+    implot
+    glfw
+    ${OPENGL_LIBRARIES}
+    gtsam_unstable
+    gtsam
+    Eigen3::Eigen
+)
+
+
 add_library(hypothesis
-  # src/jcbb/MarginalMocks.cpp
   src/data_association/Hypothesis.cpp
 )
 
@@ -91,6 +141,7 @@ target_link_libraries(slam_g2o_file
   hypothesis
   glog::glog
   data_association
+  visualizer
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )

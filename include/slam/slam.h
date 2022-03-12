@@ -12,6 +12,7 @@
 #include "slam/types.h"
 #include "data_association/Hypothesis.h"
 #include "data_association/DataAssociation.h"
+#include "visualization/Visualizer.h"
 
 namespace slam
 {
@@ -31,6 +32,7 @@ namespace slam
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
 
         std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association_;
+        visualization::Visualizer::shared_ptr viz_;
 
         unsigned long int latest_pose_key_;
         POSE latest_pose_;
@@ -48,7 +50,10 @@ namespace slam
 
         inline const gtsam::Values currentEstimates() const { return isam_.calculateEstimate(); }
         void processTimestep(const Timestep<POSE, POINT>& timestep);
-        void initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association); //, const gtsam::Vector &lmk_prior_noise);
+        void initialize(
+            const gtsam::Vector &pose_prior_noise,
+        std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association,
+        visualization::Visualizer::shared_ptr viz = {}); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
         inline const gtsam::NonlinearFactorGraph& getGraph() const { return isam_.getFactorsUnsafe(); }
