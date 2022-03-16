@@ -235,10 +235,10 @@ namespace visualization
         }
     }
 
-    void draw_covar_ell(const Eigen::Vector2d &l, const Eigen::Matrix2d &S, const double s, const int n)
+    void draw_covar_ell(const Eigen::Vector2d &l, const Eigen::Matrix2d &S, const double s, const char* covariance_label, const int n)
     {
         Eigen::MatrixXd ell = ellipse(l, S, s, n);
-        ImPlot::PlotLine("Ellipsis", &ell(0, 0), &ell(1, 0), n, 0, 2 * sizeof(double));
+        ImPlot::PlotLine(covariance_label, &ell(0, 0), &ell(1, 0), n, 0, 2 * sizeof(double));
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
         ImPlot::PlotScatter("lmk", &l(0), &l(1), 1);
     }

@@ -31,6 +31,6 @@ namespace visualization {
 
     // Assumes that factors are PoseToPoint 2D, robot is pose and landmarks are points
     void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates);
-    void draw_covar_ell(const Eigen::Vector2d& l, const Eigen::Matrix2d& S, const double s, const int n = 200);
+    void draw_covar_ell(const Eigen::Vector2d& l, const Eigen::Matrix2d& S, const double s, const char* covariance_label = "Covariance", const int n = 200);
 
 } // namespace visualization
