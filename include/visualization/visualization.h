@@ -22,21 +22,15 @@
 
 namespace visualization {
 
-class Visualizer
-{
-private:
-    GLFWwindow *window_;
-
-public:
-    typedef std::shared_ptr<Visualizer> shared_ptr;
-    void new_frame() const;
+    void new_frame();
     void render();
-    inline bool is_initialized() const { return window_ != NULL; }
-    inline bool running() const { return is_initialized() && !glfwWindowShouldClose(window_); };
     void progress_bar(int curr_timestep, int tot_timesteps);
-    void draw_factor_graph(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& estimates);
-    Visualizer();
-    ~Visualizer();
-};
+    bool running();
+    bool init();
+    void shutdown();
+
+    // Assumes that factors are PoseToPoint 2D, robot is pose and landmarks are points
+    void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates);
+    void draw_covar_ell(const Eigen::Vector2d& l, const Eigen::Matrix2d& S, const double s, const int n = 200);
 
 } // namespace visualization

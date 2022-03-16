@@ -2,7 +2,6 @@
 #include "slam/types.h"
 #include "data_association/Hypothesis.h"
 #include "data_association/DataAssociation.h"
-#include "visualization/Visualizer.h"
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/slam/BetweenFactor.h>
@@ -38,14 +37,10 @@ namespace slam
   }
 
   template <class POSE, class POINT>
-  void SLAM<POSE, POINT>::initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association, visualization::Visualizer::shared_ptr viz)
+  void SLAM<POSE, POINT>::initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association)
   {
     pose_prior_noise_ = gtsam::noiseModel::Diagonal::Sigmas(pose_prior_noise);
     data_association_ = data_association;
-    if (viz) {
-      std::cout << "Visualization enabled!\n";
-      viz_ = viz;
-    }
 
     // Add prior on first pose
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
@@ -168,13 +163,6 @@ namespace slam
         update();
       }
     }
-
-    // if (viz_) {
-    //   const auto& graph = getGraph();
-    //   const auto& estimates = currentEstimates();
-    //   viz_->draw_factor_graph(graph, estimates);
-    // }
-
   }
 
   template <class POSE, class POINT>

@@ -28,6 +28,7 @@ namespace da
 
     private:
       double mh_threshold_;
+      double sigmas_;
       double range_threshold_;
 
     public:

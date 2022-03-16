@@ -17,11 +17,13 @@
 #include "slam/slam.h"
 #include "slam/types.h"
 #include "data_association/ml/MaximumLikelihood.h"
-#include "visualization/Visualizer.h"
+#include "visualization/visualization.h"
 
 using gtsam::symbol_shorthand::L; // gtsam/slam/dataset.cpp
 using namespace std;
 using namespace gtsam;
+
+namespace viz = visualization;
 
 int main(int argc, char **argv)
 {
@@ -81,8 +83,7 @@ int main(int argc, char **argv)
     bool caught_exception = false;
 
     // Setup visualization
-    visualization::Visualizer::shared_ptr viz = std::make_shared<visualization::Visualizer>();
-    if (!viz->is_initialized())
+    if (!viz::init())
     {
         cout << "Failed to initialize visualization, aborting!\n";
         return -1;
@@ -95,6 +96,7 @@ int main(int argc, char **argv)
     bool early_stop = false;
     bool next_timestep = true;
     bool enable_stepping = true;
+    bool draw_factor_graph = true;
 
     try
     {
@@ -140,16 +142,37 @@ int main(int argc, char **argv)
             vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
             slam::SLAM2D slam_sys{};
             std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
-            slam_sys.initialize(pose_prior_noise, data_asso, viz);
+            slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
 
             size_t i = 0;
             int step = timesteps[i].step;
-            while (viz->running() && i < tot_timesteps)
+            while (viz::running() && i < tot_timesteps)
             {
-                viz->new_frame();
+                viz::new_frame();
+
+                ImGui::Begin("Menu");
+
+                viz::progress_bar(step, tot_timesteps);
+                ImGui::Checkbox("Enable stepping", &enable_stepping);
+                if (enable_stepping)
+                {
+                    ImGui::SameLine(0.0f, 100.0f);
+                    next_timestep = ImGui::Button("Next timestep");
+                }
+                else
+                {
+                    next_timestep = true;
+                }
+                ImGui::Checkbox("Draw factor graph", &draw_factor_graph);
+
+                ImGui::End(); // Menu
+
+                ImGui::Begin("Data association logger");
+                ImGui::End();
                 if (next_timestep)
                 {
+
                     const slam::Timestep2D &timestep = timesteps[i];
                     step = timestep.step;
 
@@ -168,26 +191,19 @@ int main(int argc, char **argv)
                     total_time += duration;
                     final_error = slam_sys.error();
                     estimates = slam_sys.currentEstimates();
-                    if (enable_stepping) {
+                    if (enable_stepping)
+                    {
                         next_timestep = false;
                     }
                 }
 
-                const auto& graph = slam_sys.getGraph();
-                viz->draw_factor_graph(graph, estimates);
-
-                ImGui::Begin("Status");
-                viz->progress_bar(step, tot_timesteps);
-                ImGui::Checkbox("Enable stepping", &enable_stepping);
-                if (enable_stepping) {
-                    next_timestep = ImGui::Button("Next timestep");
-                } else {
-                    next_timestep = true;
+                if (draw_factor_graph)
+                {
+                    const auto &graph = slam_sys.getGraph();
+                    viz::draw_factor_graph(graph, estimates);
                 }
-                
-                ImGui::End();
 
-                viz->render();
+                viz::render();
                 if (next_timestep)
                 {
                     i++;
@@ -242,4 +258,6 @@ int main(int argc, char **argv)
             std::cout << "done! " << std::endl;
         }
     }
+
+    viz::shutdown();
 }

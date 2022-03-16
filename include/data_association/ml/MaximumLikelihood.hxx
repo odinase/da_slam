@@ -12,6 +12,11 @@
 #include <chrono>
 
 #include "data_association/DataAssociation.h"
+#include "visualization/visualization.h"
+#include "imgui.h"
+#include "implot.h"
+
+namespace viz = visualization;
 
 namespace da
 {
@@ -24,7 +29,8 @@ namespace da
     template <class POSE, class POINT>
     MaximumLikelihood<POSE, POINT>::MaximumLikelihood(double sigmas, double range_threshold)
         : mh_threshold_(sigmas * sigmas),
-          range_threshold_(range_threshold)
+          range_threshold_(range_threshold),
+          sigmas_(sigmas)
     {
     }
 
@@ -34,9 +40,10 @@ namespace da
         const gtsam::Marginals &marginals,
         const gtsam::FastVector<slam::Measurement<POINT>> &measurements)
     {
-      #ifdef PROFILING
+
+#ifdef PROFILING
       std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-      #endif
+#endif
 
       gtsam::KeyList landmark_keys = estimates.filter(gtsam::Symbol::ChrTest('l')).keys();
       auto poses = estimates.filter(gtsam::Symbol::ChrTest('x'));
@@ -60,6 +67,7 @@ namespace da
       gtsam::KeyVector keys;
       keys.push_back(x_key);
 
+      ImGui::Begin("Data association logger");
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;
@@ -76,10 +84,12 @@ namespace da
             if (std::find(keys.begin(), keys.end(), l) == keys.end())
             {
               keys.push_back(l);
+              ImGui::Text("Landmark %c%lu satisfies range threshold", gtsam::symbolChr(l), gtsam::symbolIndex(l));
             }
           }
         }
       }
+      ImGui::End();
 
 #ifdef PROFILING
       end = std::chrono::steady_clock::now();
@@ -101,7 +111,6 @@ namespace da
 
       gtsam::JointMarginal joint_marginals = marginals.jointMarginalCovariance(keys);
 
-
 #ifdef PROFILING
       end = std::chrono::steady_clock::now();
       std::cout << "Making joint marginals took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
@@ -112,6 +121,7 @@ namespace da
       // Map of landmarks that are individually compatible with at least one measurement, with NIS
       gtsam::FastMap<gtsam::Key, std::vector<std::pair<int, double>>> lmk_meas_asso_candidates;
 
+      ImGui::Begin("Associations");
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;
@@ -126,8 +136,18 @@ namespace da
           gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
           hypothesis::Association a(meas_idx, l, Hx, Hl, error);
-          auto [mh_dist, log_norm_factor] = individual_compatability(a, x_key, joint_marginals, measurements);
+          double log_norm_factor;
+          Eigen::Matrix2d S;
+          double mh_dist = individual_compatability(a, x_key, joint_marginals, measurements, log_norm_factor, S);
 
+          if constexpr (POINT::RowsAtCompileTime == 2)
+          {
+            if (ImPlot::BeginPlot("##My Plot", ImVec2(-1, -1)))
+            {
+              viz::draw_covar_ell(lmk, S, sigmas_);
+              ImPlot::EndPlot();
+            }
+          }
           double mle_cost = mh_dist + log_norm_factor;
 
           // Individually compatible?
@@ -137,7 +157,8 @@ namespace da
           }
         }
       }
-
+            // while (!ImGui::Button("Next asso")) ;
+      ImGui::End();
 
 #ifdef PROFILING
       end = std::chrono::steady_clock::now();
@@ -173,13 +194,13 @@ namespace da
           for (const auto &[meas_idx, mle_cost] : meas_candidates)
           {
             cost_matrix(meas_idx, lmk_idx) = mle_cost;
-            if (mle_cost < lowest_mle_cost) {
+            if (mle_cost < lowest_mle_cost)
+            {
               lowest_mle_cost = mle_cost;
             }
           }
           lmk_idx++;
         }
-
 
 #ifdef PROFILING
         end = std::chrono::steady_clock::now();
@@ -235,7 +256,7 @@ namespace da
           gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, l, meas, noise);
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
           Association::shared_ptr a = std::make_shared<Association>(meas_idx, l, Hx, Hl, error);
-          auto [nis, log_norm_factor] = individual_compatability(*a, x_key, joint_marginals, measurements);
+          // auto [nis, log_norm_factor] = individual_compatability(*a, x_key, joint_marginals, measurements);
 
           h.extend(a);
         }

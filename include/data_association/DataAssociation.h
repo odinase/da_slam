@@ -10,6 +10,12 @@
 #include <iostream>
 #include <cmath>
 #include <utility>
+#include "visualization/visualization.h"
+#include "imgui.h"
+#include "implot.h"
+#include <functional>
+#include <memory>
+#include <optional>
 
 namespace da
 {
@@ -34,11 +40,14 @@ namespace da
   };
 
   template <class MEASUREMENT>
-  std::pair<double, double> individual_compatability(
+  double individual_compatability(
       const hypothesis::Association &a,
       gtsam::Key x_key,
       const gtsam::JointMarginal &joint_marginals,
-      const gtsam::FastVector<MEASUREMENT> &measurements)
+      const gtsam::FastVector<MEASUREMENT> &measurements,
+      std::optional<std::reference_wrapper<double>> log_norm_factor = {},
+      std::optional<Eigen::Ref<Eigen::MatrixXd>> S_ = {}
+      )
   {
     int rows = a.Hx.rows();
     int cols = a.Hx.cols() + a.Hl.cols();
@@ -61,13 +70,20 @@ namespace da
 
     Eigen::MatrixXd S = H * P * H.transpose() + R;
 
+    if (S_) {
+      S_ = S;
+    }
+
     const Eigen::VectorXd& innov = a.error;
 
     Eigen::LLT<Eigen::MatrixXd> chol = S.llt();
     auto& L = chol.matrixL();
-    double log_norm_factor = 2.0*L.toDenseMatrix().diagonal().array().log().sum();
 
-    return {innov.transpose() * chol.solve(innov), log_norm_factor};
+    if (log_norm_factor) {
+      log_norm_factor->get() = 2.0*L.toDenseMatrix().diagonal().array().log().sum();
+    }
+
+    return innov.transpose() * chol.solve(innov);
   }
 
   template <class MEASUREMENT>
@@ -191,7 +207,7 @@ namespace da
   std::vector<int> auction(const Eigen::MatrixXd& problem, double eps = 1e-3, uint64_t max_iterations = 10'000);
   std::vector<int> hungarian(const Eigen::MatrixXd &cost_matrix);
 
-} // namespace data_association
+} // namespace da
 
 
 #endif // DATA_ASSOCIATION_H

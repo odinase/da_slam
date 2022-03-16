@@ -17,15 +17,28 @@
 #pragma comment(lib, "legacy_stdio_definitions")
 #endif
 
-#include "visualization/Visualizer.h"
+#include "visualization/visualization.h"
 #include "visualization/colors.h"
 
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
+#include <Eigen/Core>
+#include <Eigen/Cholesky>
 
 static void glfw_error_callback(int error, const char *description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+}
+
+Eigen::MatrixXd ellipse(const Eigen::Vector2d &mu, const Eigen::Matrix2d &P, const double s = 1.0, const int n = 200)
+{
+    Eigen::RowVectorXd thetas = Eigen::RowVectorXd::LinSpaced(n, 0, 2.0 * M_PI);
+    Eigen::MatrixXd points(2, n);
+    points << thetas.array().cos(),
+        thetas.array().sin();
+    Eigen::LLT<Eigen::Matrix2d> chol(P);
+    Eigen::MatrixXd ell = (s * chol.matrixL().toDenseMatrix() * points).colwise() + mu;
+    return ell;
 }
 
 namespace ImGui
@@ -63,8 +76,9 @@ namespace ImGui
 
 namespace visualization
 {
+    static GLFWwindow *WINDOW = NULL;
 
-    void Visualizer::new_frame() const
+    void new_frame()
     {
         // Poll and handle events (inputs, window resize, etc.)
         // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -79,22 +93,22 @@ namespace visualization
         ImGui::NewFrame();
     }
 
-    void Visualizer::render()
+    void render()
     {
         using namespace colors;
         // Rendering
         ImGui::Render();
         int display_w, display_h;
-        glfwGetFramebufferSize(window_, &display_w, &display_h);
+        glfwGetFramebufferSize(WINDOW, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
         glClearColor(CLEAR.x * CLEAR.w, CLEAR.y * CLEAR.w, CLEAR.z * CLEAR.w, CLEAR.w);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        glfwSwapBuffers(window_);
+        glfwSwapBuffers(WINDOW);
     }
 
-    void Visualizer::progress_bar(int curr_timestep, int tot_timesteps)
+    void progress_bar(int curr_timestep, int tot_timesteps)
     {
         static const ImU32 col = ImGui::GetColorU32(ImGuiCol_ButtonHovered);
         static const ImU32 bg = ImGui::GetColorU32(ImGuiCol_Button);
@@ -105,13 +119,17 @@ namespace visualization
         ImGui::Text("Processed %d / %d timesteps, %.2f%% complete", curr_timestep, tot_timesteps, progress * 100.0);
     }
 
-    Visualizer::Visualizer()
+    bool running()
     {
-        window_ = NULL;
+        return WINDOW != NULL && !glfwWindowShouldClose(WINDOW);
+    }
+
+    bool init()
+    {
         // Setup window
         glfwSetErrorCallback(glfw_error_callback);
         if (!glfwInit())
-            return;
+            return false;
 
             // Decide GL+GLSL versions
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -137,10 +155,10 @@ namespace visualization
 #endif
 
         // Create window with graphics context
-        window_ = glfwCreateWindow(1280, 720, "Data Association SLAM - Visualization", NULL, NULL);
-        if (window_ == NULL)
-            return;
-        glfwMakeContextCurrent(window_);
+        WINDOW = glfwCreateWindow(1280, 720, "Data Association SLAM - Visualization", NULL, NULL);
+        if (WINDOW == NULL)
+            return false;
+        glfwMakeContextCurrent(WINDOW);
         glfwSwapInterval(1); // Enable vsync
 
         // Setup Dear ImGui context
@@ -156,11 +174,13 @@ namespace visualization
         // ImGui::StyleColorsClassic();
 
         // Setup Platform/Renderer backends
-        ImGui_ImplGlfw_InitForOpenGL(window_, true);
+        ImGui_ImplGlfw_InitForOpenGL(WINDOW, true);
         ImGui_ImplOpenGL3_Init(glsl_version);
+
+        return true;
     }
 
-    Visualizer::~Visualizer()
+    void shutdown()
     {
         // Cleanup
         ImGui_ImplOpenGL3_Shutdown();
@@ -168,57 +188,59 @@ namespace visualization
         ImPlot::DestroyContext();
         ImGui::DestroyContext();
 
-        glfwDestroyWindow(window_);
+        glfwDestroyWindow(WINDOW);
         glfwTerminate();
     }
 
     // Assumes that factors are PoseToPoint 2D, robot is pose and landmarks are points
-    void Visualizer::draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates)
+    void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates)
     {
-        ImGui::Begin("Factor graph");
-        if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
-        {
-            gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>::shared_ptr meas;
-            gtsam::BetweenFactor<gtsam::Pose2>::shared_ptr odom;
-            for (const auto &factor_ : graph)
-            { // inspired by dataset.cpp/writeG2o
-                meas = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>>(factor_);
-                odom = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose2>>(factor_);
-                double line[4]; // = {0.0, 0.0, 0.0, 0.0};
-                if (meas)
-                {
-                    gtsam::Pose2 x = estimates.at<gtsam::Pose2>(meas->key1());
-                    gtsam::Point2 l = estimates.at<gtsam::Point2>(meas->key2());
+        gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>::shared_ptr meas;
+        gtsam::BetweenFactor<gtsam::Pose2>::shared_ptr odom;
+        for (const auto &factor_ : graph)
+        { // inspired by dataset.cpp/writeG2o
+            meas = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>>(factor_);
+            odom = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose2>>(factor_);
+            double line[4]; // = {0.0, 0.0, 0.0, 0.0};
+            if (meas)
+            {
+                gtsam::Pose2 x = estimates.at<gtsam::Pose2>(meas->key1());
+                gtsam::Point2 l = estimates.at<gtsam::Point2>(meas->key2());
 
-                    line[0] = x.x();
-                    line[1] = l.x();
+                line[0] = x.x();
+                line[1] = l.x();
 
-                    line[2] = x.y();
-                    line[3] = l.y();
+                line[2] = x.y();
+                line[3] = l.y();
 
-                    ImPlot::PlotLine("Measurement", line, line + 2, 2);
-                    ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
-                    ImPlot::PlotScatter("Landmark", &l.x(), &l.y(), 1);
-                }
-                if (odom)
-                {
-                    gtsam::Pose2 x_from = estimates.at<gtsam::Pose2>(odom->key1());
-                    gtsam::Pose2 x_to = estimates.at<gtsam::Pose2>(odom->key2());
-
-                    line[0] = x_from.x();
-                    line[1] = x_to.x();
-
-                    line[2] = x_from.y();
-                    line[3] = x_to.y();
-
-                    ImPlot::PlotLine("Odometry", line, line + 2, 2);
-                    ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
-                    ImPlot::PlotScatter("Poses", line, line + 2, 2);
-                }
+                ImPlot::PlotLine("Measurement", line, line + 2, 2);
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
+                ImPlot::PlotScatter("Landmark", &l.x(), &l.y(), 1);
             }
-            ImPlot::EndPlot();
+            if (odom)
+            {
+                gtsam::Pose2 x_from = estimates.at<gtsam::Pose2>(odom->key1());
+                gtsam::Pose2 x_to = estimates.at<gtsam::Pose2>(odom->key2());
+
+                line[0] = x_from.x();
+                line[1] = x_to.x();
+
+                line[2] = x_from.y();
+                line[3] = x_to.y();
+
+                ImPlot::PlotLine("Odometry", line, line + 2, 2);
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
+                ImPlot::PlotScatter("Poses", line, line + 2, 2);
+            }
         }
-        ImGui::End();
+    }
+
+    void draw_covar_ell(const Eigen::Vector2d &l, const Eigen::Matrix2d &S, const double s, const int n)
+    {
+        Eigen::MatrixXd ell = ellipse(l, S, s, n);
+        ImPlot::PlotLine("Ellipsis", &ell(0, 0), &ell(1, 0), n, 0, 2 * sizeof(double));
+        ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
+        ImPlot::PlotScatter("lmk", &l(0), &l(1), 1);
     }
 
 } // namespace visualization

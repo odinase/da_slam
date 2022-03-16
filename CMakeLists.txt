@@ -96,11 +96,11 @@ target_link_libraries(implot
     imgui
 )
 
-add_library(visualizer
-    src/Visualizer.cpp
+add_library(visualization
+    src/visualization.cpp
 )
 
-target_link_libraries(visualizer
+target_link_libraries(visualization
     imgui_backend
     imgui
     implot
@@ -141,7 +141,7 @@ target_link_libraries(slam_g2o_file
   hypothesis
   glog::glog
   data_association
-  visualizer
+  visualization
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
@@ -176,3 +176,20 @@ target_link_libraries(test_hungarian_method
 )
 
 set_target_properties(test_hungarian_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
+
+
+add_executable(test_association_visualization
+  tests/test_association_visualization.cpp
+)
+
+target_link_libraries(test_association_visualization
+  Eigen3::Eigen
+  gtsam
+  gtsam_unstable
+  glog::glog
+  data_association
+  hypothesis
+  visualization
+)
+
+set_target_properties(test_association_visualization PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
