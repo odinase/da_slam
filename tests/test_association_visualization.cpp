@@ -258,7 +258,7 @@ int main(int argc, char **argv)
     marginals = gtsam::Marginals(isam_graph, curr_estimates);
     joint_marginals = marginals.jointMarginalCovariance(graph_keys);
 
-    da::hypothesis::Hypothesis h = ml.associate_bad(curr_estimates, marginals, measurements);
+    da::hypothesis::Hypothesis h = ml.associate(curr_estimates, marginals, measurements);
     const auto &assos = h.associations();
 
     while (viz::running() && !next_timestep)

@@ -67,7 +67,7 @@ namespace da
       gtsam::KeyVector keys;
       keys.push_back(x_key);
 
-      ImGui::Begin("Data association logger");
+
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;
@@ -84,12 +84,10 @@ namespace da
             if (std::find(keys.begin(), keys.end(), l) == keys.end())
             {
               keys.push_back(l);
-              ImGui::Text("Landmark %c%lu satisfies range threshold", gtsam::symbolChr(l), gtsam::symbolIndex(l));
             }
           }
         }
       }
-      ImGui::End();
 
 #ifdef PROFILING
       end = std::chrono::steady_clock::now();
@@ -121,7 +119,6 @@ namespace da
       // Map of landmarks that are individually compatible with at least one measurement, with NIS
       gtsam::FastMap<gtsam::Key, std::vector<std::pair<int, double>>> lmk_meas_asso_candidates;
 
-      ImGui::Begin("Associations");
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;
@@ -140,14 +137,6 @@ namespace da
           Eigen::Matrix2d S;
           double mh_dist = individual_compatability(a, x_key, joint_marginals, measurements, log_norm_factor, S);
 
-          if constexpr (POINT::RowsAtCompileTime == 2)
-          {
-            if (ImPlot::BeginPlot("##My Plot", ImVec2(-1, -1)))
-            {
-              viz::draw_covar_ell(lmk, S, sigmas_);
-              ImPlot::EndPlot();
-            }
-          }
           double mle_cost = mh_dist + log_norm_factor;
 
           // Individually compatible?
@@ -157,8 +146,6 @@ namespace da
           }
         }
       }
-      // while (!ImGui::Button("Next asso")) ;
-      ImGui::End();
 
 #ifdef PROFILING
       end = std::chrono::steady_clock::now();
