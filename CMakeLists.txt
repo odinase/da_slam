@@ -8,7 +8,7 @@ find_package(GTSAM REQUIRED) # Uses installed package
 # include_directories(${GTSAM_INCLUDE_DIR})
 
 find_package(Eigen3 REQUIRED)
-set(EIGEN3_INCLUDE_DIR "/usr/local/include/gtsam/3rdparty/Eigen")
+# set(EIGEN3_INCLUDE_DIR "/usr/local/include/gtsam/3rdparty/Eigen")
 include_directories(${EIGEN3_INCLUDE_DIR})
 
 find_package (glog 0.6.0 REQUIRED)
