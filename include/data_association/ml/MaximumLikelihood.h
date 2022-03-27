@@ -28,6 +28,7 @@ namespace da
 
     private:
       double mh_threshold_;
+      double sigmas_;
       double range_threshold_;
 
     public:
@@ -36,6 +37,11 @@ namespace da
           const gtsam::Values &estimates,
           const gtsam::Marginals &marginals,
           const gtsam::FastVector<slam::Measurement<POINT>> &measurements) override;
+
+    hypothesis::Hypothesis associate_bad(
+          const gtsam::Values &estimates,
+          const gtsam::Marginals &marginals,
+          const gtsam::FastVector<slam::Measurement<POINT>> &measurements);
     };
 
     using MaximumLikelihood2D = MaximumLikelihood<gtsam::Pose2, gtsam::Point2>;

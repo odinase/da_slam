@@ -1,6 +1,7 @@
 #include "slam/slam.h"
 #include "slam/types.h"
 #include "data_association/Hypothesis.h"
+#include "data_association/DataAssociation.h"
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/slam/BetweenFactor.h>

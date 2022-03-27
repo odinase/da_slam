@@ -1,3 +1,4 @@
+#pragma once
 /* ----------------------------------------------------------------------------
 
  * GTSAM Copyright 2010, Georgia Tech Research Corporation,
@@ -35,6 +36,7 @@
 #include "slam/types.h"
 
 using gtsam::symbol_shorthand::L;  // gtsam/slam/dataset.cpp
+
 
 namespace gtsam {
 

@@ -2,8 +2,9 @@
 /slam_g2o_file
 /tests
 slam_g2o_file
-/tests/test_auction_method
-/tests/test_hungarian_method
+!/tests/test_hungarian_method.cpp
+!/tests/test_auction_method.cpp
+!/tests/test_association_visualization.cpp
 /logs
 *.txt
 !CMakeLists.txt
