@@ -22,6 +22,9 @@ struct Measurement {
     gtsam::SharedNoiseModel noise;
 };
 
+using Measurement2D = Measurement<gtsam::Point2>;
+using Measurement3D = Measurement<gtsam::Point3>;
+
 
 template <class POSE, class POINT>
 struct Timestep

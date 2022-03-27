@@ -82,7 +82,7 @@ int main(int argc, char **argv)
     estimates.insert(X(pose_idx), x0);
     graph_keys.push_back(X(pose_idx));
 
-    const double meas_sigma = 0.2; // 0.2 m std in x and y for measurements
+    const double meas_sigma = 0.3; // 0.2 m std in x and y for measurements
 
     gtsam::noiseModel::Isotropic::shared_ptr meas_noise =
         gtsam::noiseModel::Isotropic::Sigma(2, meas_sigma);
@@ -191,7 +191,7 @@ int main(int argc, char **argv)
     marginals = gtsam::Marginals(isam_graph, curr_estimates);
     joint_marginals = marginals.jointMarginalCovariance(graph_keys);
 
-    
+    // Measurements, two close to each landmark and
 
     while (viz::running() && !next_timestep)
     {
@@ -219,6 +219,132 @@ int main(int argc, char **argv)
             ImPlot::EndPlot();
         }
         ImGui::End();
+
+        ImGui::Begin("Menu");
+        next_timestep = ImGui::Button("Next timestep");
+        ImGui::End();
+
+        ImGui::Begin("Menu");
+        ImGui::Text("Test");
+        ImGui::End();
+
+        viz::render();
+    }
+
+    next_timestep = false;
+
+    gtsam::Point2 z1_w, z2_w;
+
+    z1_w << 1, -0.2;
+    z2_w << 1.2, -0.8;
+
+    z1 = x1.transformTo(z1_w);
+    z2 = x1.transformTo(z2_w);
+
+    measurements.clear();
+
+    m1.measurement = z1;
+    m2.measurement = z2;
+
+    measurements.push_back(m1);
+    measurements.push_back(m2);
+
+    // isam.update(graph, estimates);
+    // graph.resize(0);
+    // estimates.clear();
+
+    isam_graph = isam.getFactorsUnsafe();
+    curr_estimates = isam.calculateEstimate();
+    marginals = gtsam::Marginals(isam_graph, curr_estimates);
+    joint_marginals = marginals.jointMarginalCovariance(graph_keys);
+
+    da::hypothesis::Hypothesis h = ml.associate(curr_estimates, marginals, measurements);
+    const auto &assos = h.associations();
+
+    while (viz::running() && !next_timestep)
+    {
+        viz::new_frame();
+
+        gtsam::PoseToPointFactor2 f1(X(pose_idx), L(0), z1, meas_noise);
+        gtsam::Vector error = f1.evaluateError(x0, l0, Hx, Hl);
+        da::hypothesis::Association a0(0, L(0), Hx, Hl, error);
+        double log_norm_factor;
+        Eigen::Matrix2d S0, S1;
+        double mh_dist = da::individual_compatability(a0, X(0), joint_marginals, measurements, log_norm_factor, S0);
+
+        gtsam::PoseToPointFactor2 f2(X(pose_idx), L(1), z2, meas_noise);
+        error = f2.evaluateError(x0, l1, Hx, Hl);
+        da::hypothesis::Association a1(1, L(1), Hx, Hl, error);
+        mh_dist = da::individual_compatability(a1, X(0), joint_marginals, measurements, log_norm_factor, S1);
+
+        ImGui::Begin("Factor graph");
+        if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
+        {
+            viz::draw_covar_ell(l0, S0, sigmas, covariance_label.c_str());
+            viz::draw_covar_ell(l1, S1, sigmas, covariance_label.c_str());
+            viz::draw_factor_graph(isam_graph, curr_estimates);
+
+            double line[4];
+            for (int i = 0; i < assos.size(); i++)
+            {
+                da::hypothesis::Association::shared_ptr a = assos[i];
+                gtsam::Point2 meas = measurements[a->measurement].measurement;
+                const auto &meas_noise = measurements[a->measurement].noise;
+                gtsam::Point2 meas_world = x1 * meas;
+                if (a->associated())
+                {
+                    gtsam::Point2 l = curr_estimates.at<gtsam::Point2>(*a->landmark);
+                    line[0] = meas_world.x();
+                    line[1] = l.x();
+
+                    line[2] = meas_world.y();
+                    line[3] = l.y();
+
+                    ImPlot::PlotLine("Association", line, line + 2, 2);
+                    ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
+                    ImPlot::PlotScatter("Associated measurement", &meas_world.x(), &meas_world.y(), 1);
+                }
+                else
+                {
+                    ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(209.0 / 255.0, 185.0 / 255.0, 29.0 / 255.0, 1.0));
+                    ImPlot::PlotScatter("Unassociated measurement", &meas_world.x(), &meas_world.y(), 1);
+                }
+            }
+
+            ImPlot::EndPlot();
+        }
+        ImGui::End();
+
+        // ImGui::Begin("Associations");
+        // if (ImPlot::BeginPlot("##associations", ImVec2(-1, -1)))
+        // {
+        //     double line[4];
+        //     for (int i = 0; i < assos.size(); i++)
+        //     {
+        //         da::hypothesis::Association::shared_ptr a = assos[i];
+        //         gtsam::Point2 meas = measurements[a->measurement].measurement;
+        //         const auto &meas_noise = measurements[a->measurement].noise;
+        //         gtsam::Point2 meas_world = x1 * meas;
+        //         if (a->associated())
+        //         {
+        //             gtsam::Point2 l = curr_estimates.at<gtsam::Point2>(*a->landmark);
+        //             line[0] = meas_world.x();
+        //             line[1] = l.x();
+
+        //             line[2] = meas_world.y();
+        //             line[3] = l.y();
+
+        //             ImPlot::PlotLine("Association", line, line + 2, 2);
+        //         }
+        //         else
+        //         {
+        //         ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
+        //         ImPlot::PlotScatter("Landmark", &meas_world.x(), &meas_world.y(), 1);
+        //         }
+        //     }
+
+        //     ImPlot::EndPlot();
+        // }
 
         ImGui::Begin("Menu");
         next_timestep = ImGui::Button("Next timestep");
