@@ -46,7 +46,15 @@ namespace slam
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
     initial_estimates_.insert(X(latest_pose_key_), POSE());
 
-    update(graph_, initial_estimates_);
+    try
+    {
+      update(graph_, initial_estimates_);
+    }
+    catch (gtsam::IndeterminantLinearSystemException &indetErr)
+    {
+      std::cerr << "Error when initializing prior!\n";
+      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, getGraph(), currentEstimates());
+    }
   }
 
   template <class POSE, class POINT>
@@ -92,8 +100,8 @@ namespace slam
       return;
     }
 
-    gtsam::NonlinearFactorGraph full_graph = isam_.getFactorsUnsafe();
-    gtsam::Values estimates = isam_.calculateEstimate();
+    const gtsam::NonlinearFactorGraph &full_graph = isam_.getFactorsUnsafe();
+    const gtsam::Values &estimates = isam_.calculateEstimate();
 
     gtsam::Marginals marginals = gtsam::Marginals(full_graph, estimates);
 
@@ -152,15 +160,31 @@ namespace slam
 #ifdef LOGGING
     std::cout << "Associated " << associated_measurements << " / " << timestep.measurements.size() << " measurements in timestep " << timestep.step << "\n";
 #endif
-
-    update(graph_, initial_estimates_);
+    try
+    {
+      update(graph_, initial_estimates_);
+    }
+    catch (gtsam::IndeterminantLinearSystemException &indetErr)
+    {
+      std::cerr << "Error when updating with new measurements!\n";
+      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, getGraph(), currentEstimates());
+    }
 
     // Call update extra times to relinearize with new loop closure
     if (new_loop_closure)
     {
-      for (int i = 0; i < 20; i++)
+      try
       {
-        update();
+
+        for (int i = 0; i < 20; i++)
+        {
+          update();
+        }
+      }
+    catch (gtsam::IndeterminantLinearSystemException &indetErr)
+    {
+      std::cerr << "Error running multiple updates because of loop closure!\n";
+      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, getGraph(), currentEstimates());
       }
     }
   }
@@ -172,8 +196,15 @@ namespace slam
     POSE this_pose = latest_pose_ * odom.odom;
     initial_estimates_.insert(X(latest_pose_key_ + 1), this_pose);
     latest_pose_ = this_pose;
-
-    update(graph_, initial_estimates_);
+    try
+    {
+      update(graph_, initial_estimates_);
+    }
+    catch (gtsam::IndeterminantLinearSystemException &indetErr)
+    {
+      std::cerr << "Error when adding odom!\n";
+      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, getGraph(), currentEstimates());
+      }
 
     incrementLatestPoseKey();
   }

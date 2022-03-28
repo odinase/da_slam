@@ -5,6 +5,7 @@
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/sam/BearingRangeFactor.h>
 #include <gtsam/slam/dataset.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
@@ -44,6 +45,19 @@ struct Landmark {
     gtsam::Pose3 pose;
 };
 
+struct IndeterminantLinearSystemExceptionWithGraphValues : public gtsam::IndeterminantLinearSystemException {
+    gtsam::NonlinearFactorGraph graph;
+    gtsam::Values values;
+    IndeterminantLinearSystemExceptionWithGraphValues(const gtsam::IndeterminantLinearSystemException& err, const gtsam::NonlinearFactorGraph& graph_, const gtsam::Values& values_) :
+    gtsam::IndeterminantLinearSystemException(err.nearbyVariable()),
+     graph(graph_),
+     values(values_)
+      {}
+};
+
+
 } // namespace slam
+
+
 
 #endif // TYPES_H

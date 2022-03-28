@@ -5,6 +5,8 @@
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
 #include <cmath>
+#include <sstream>
+#include <string>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
@@ -22,6 +24,7 @@
 
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/inference/Symbol.h>
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
 
@@ -195,17 +198,28 @@ namespace visualization
     // Assumes that factors are PoseToPoint 2D, robot is pose and landmarks are points
     void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates)
     {
-        gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>::shared_ptr meas;
-        gtsam::BetweenFactor<gtsam::Pose2>::shared_ptr odom;
+        gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>::shared_ptr meas2d;
+        gtsam::BetweenFactor<gtsam::Pose2>::shared_ptr odom2d;
+
+        gtsam::PoseToPointFactor<gtsam::Pose3, gtsam::Point3>::shared_ptr meas3d;
+        gtsam::BetweenFactor<gtsam::Pose3>::shared_ptr odom3d;
+
+        std::stringstream ss;
+        std::string text;
+
         for (const auto &factor_ : graph)
         { // inspired by dataset.cpp/writeG2o
-            meas = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>>(factor_);
-            odom = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose2>>(factor_);
+            meas2d = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>>(factor_);
+            odom2d = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose2>>(factor_);
+            meas3d = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose3, gtsam::Point3>>(factor_);
+            odom3d = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(factor_);
             double line[4]; // = {0.0, 0.0, 0.0, 0.0};
-            if (meas)
+            if (meas2d)
             {
-                gtsam::Pose2 x = estimates.at<gtsam::Pose2>(meas->key1());
-                gtsam::Point2 l = estimates.at<gtsam::Point2>(meas->key2());
+                gtsam::Key x_key = meas2d->key1();
+                gtsam::Key lmk_key = meas2d->key2();
+                gtsam::Pose2 x = estimates.at<gtsam::Pose2>(x_key);
+                gtsam::Point2 l = estimates.at<gtsam::Point2>(lmk_key);
 
                 line[0] = x.x();
                 line[1] = l.x();
@@ -216,11 +230,18 @@ namespace visualization
                 ImPlot::PlotLine("Measurement", line, line + 2, 2);
                 ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
                 ImPlot::PlotScatter("Landmark", &l.x(), &l.y(), 1);
+                // PlotText(const char* text, double x, double y, bool vertical=false, const ImVec2& pix_offset=ImVec2(0,0));
+                ss << gtsam::Symbol(lmk_key);
+                text = ss.str();
+                ImPlot::PlotText(text.c_str(), l.x(), l.y());
+                ss.str("");
             }
-            if (odom)
+            if (odom2d)
             {
-                gtsam::Pose2 x_from = estimates.at<gtsam::Pose2>(odom->key1());
-                gtsam::Pose2 x_to = estimates.at<gtsam::Pose2>(odom->key2());
+                gtsam::Key x_from_key = odom2d->key1();
+                gtsam::Key x_to_key = odom2d->key2();
+                gtsam::Pose2 x_from = estimates.at<gtsam::Pose2>(x_from_key);
+                gtsam::Pose2 x_to = estimates.at<gtsam::Pose2>(x_to_key);
 
                 line[0] = x_from.x();
                 line[1] = x_to.x();
@@ -231,6 +252,57 @@ namespace visualization
                 ImPlot::PlotLine("Odometry", line, line + 2, 2);
                 ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
                 ImPlot::PlotScatter("Poses", line, line + 2, 2);
+
+                ss << gtsam::Symbol(x_to_key);
+                text = ss.str();
+                ImPlot::PlotText(text.c_str(), x_to.x(), x_to.y());
+                ss.str("");
+            }
+            if (meas3d)
+            {
+                gtsam::Key x_key = meas3d->key1();
+                gtsam::Key lmk_key = meas3d->key2();
+
+                gtsam::Pose3 x = estimates.at<gtsam::Pose3>(x_key);
+                gtsam::Point3 l = estimates.at<gtsam::Point3>(lmk_key);
+
+                line[0] = x.x();
+                line[1] = l.x();
+
+                line[2] = x.y();
+                line[3] = l.y();
+
+                ImPlot::PlotLine("Measurement", line, line + 2, 2);
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
+                ImPlot::PlotScatter("Landmark", &l.x(), &l.y(), 1);
+
+                ss << gtsam::Symbol(lmk_key);
+                text = ss.str();
+                ImPlot::PlotText(text.c_str(), l.x(), l.y());
+                ss.str("");
+            }
+            if (odom3d)
+            {
+                gtsam::Key x_from_key = odom3d->key1();
+                gtsam::Key x_to_key = odom3d->key2();
+
+                gtsam::Pose3 x_from = estimates.at<gtsam::Pose3>(x_from_key);
+                gtsam::Pose3 x_to = estimates.at<gtsam::Pose3>(x_to_key);
+
+                line[0] = x_from.x();
+                line[1] = x_to.x();
+
+                line[2] = x_from.y();
+                line[3] = x_to.y();
+
+                ImPlot::PlotLine("Odometry", line, line + 2, 2);
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
+                ImPlot::PlotScatter("Poses", line, line + 2, 2);                
+                
+                ss << gtsam::Symbol(x_to_key);
+                text = ss.str();
+                ImPlot::PlotText(text.c_str(), x_to.x(), x_to.y(), false, ImVec2(15, 15));
+                ss.str("");
             }
         }
     }

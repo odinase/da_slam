@@ -38,7 +38,8 @@ int main(int argc, char **argv)
     // Parse user's inputs
     if (argc > 1)
     {
-        if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+        if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)
+        {
             cout << "Input args: <input dataset filename> <is3D> <ic prob> <range threshold> <output dataset filename>\n";
             return 0;
         }
@@ -84,6 +85,7 @@ int main(int argc, char **argv)
     std::chrono::high_resolution_clock::time_point end_t;
     double final_error;
     Values estimates;
+    NonlinearFactorGraph nlf_graph;
     bool caught_exception = false;
 
     // Setup visualization
@@ -99,9 +101,11 @@ int main(int argc, char **argv)
 
     bool early_stop = false;
     bool next_timestep = true;
-    bool enable_stepping = false;
+    bool enable_stepping = true;
     bool draw_factor_graph = true;
-
+    bool enable_step_limit = true;
+    int step_to_increment_to = 0;
+    
     try
     {
         if (is3D)
@@ -114,23 +118,99 @@ int main(int argc, char **argv)
             std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
             slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
-            for (const auto &timestep : timesteps)
+            //             for (const auto &timestep : timesteps)
+            //             {
+            //                 start_t = std::chrono::high_resolution_clock::now();
+            //                 slam_sys.processTimestep(timestep);
+            //                 end_t = std::chrono::high_resolution_clock::now();
+            //                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
+            // #ifdef LOGGING
+            //                 avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
+            //                 cout << "Duration: " << duration << " seconds\n"
+            //                      << "Average time one iteration: " << avg_time << " seconds\n";
+            // #endif
+            // #ifdef HEARTBEAT
+            //                 cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
+            // #endif
+            //                 total_time += duration;
+            //                 final_error = slam_sys.error();
+            //                 estimates = slam_sys.currentEstimates();
+            //             }
+
+            size_t i = 0;
+            int step = timesteps[i].step;
+            while (viz::running() && i < tot_timesteps)
             {
-                start_t = std::chrono::high_resolution_clock::now();
-                slam_sys.processTimestep(timestep);
-                end_t = std::chrono::high_resolution_clock::now();
-                double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
+                viz::new_frame();
+
+                ImGui::Begin("Menu");
+
+                viz::progress_bar(step, tot_timesteps);
+                ImGui::Checkbox("Enable stepping", &enable_stepping);
+                if (enable_stepping)
+                {
+                    ImGui::SameLine(0.0f, 100.0f);
+                    next_timestep = ImGui::Button("Next timestep");
+                }
+                else
+                {
+                    next_timestep = true;
+                }
+                ImGui::Checkbox("Set step to increment to", &enable_step_limit);
+                if (enable_step_limit)
+                {
+                    // ImGui::SameLine(0.0f, 100.0f);
+                    ImGui::SetNextItemWidth(150.0f);
+                    ImGui::InputInt("Step to increment to", &step_to_increment_to);
+                }
+                else
+                {
+                    step_to_increment_to = std::numeric_limits<int>::max();
+                }
+
+                ImGui::Checkbox("Draw factor graph", &draw_factor_graph);
+                ImGui::End(); // Menu
+
+                if (next_timestep && step < step_to_increment_to)
+                {
+                    const slam::Timestep3D &timestep = timesteps[i];
+                    step = timestep.step;
+
+                    start_t = std::chrono::high_resolution_clock::now();
+                    slam_sys.processTimestep(timestep);
+                    end_t = std::chrono::high_resolution_clock::now();
+                    double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
 #ifdef LOGGING
-                avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
-                cout << "Duration: " << duration << " seconds\n"
-                     << "Average time one iteration: " << avg_time << " seconds\n";
+                    avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
+                    cout << "Duration: " << duration << " seconds\n"
+                         << "Average time one iteration: " << avg_time << " seconds\n";
 #endif
 #ifdef HEARTBEAT
-                cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
+                    cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
 #endif
-                total_time += duration;
-                final_error = slam_sys.error();
-                estimates = slam_sys.currentEstimates();
+                    total_time += duration;
+                    final_error = slam_sys.error();
+                    estimates = slam_sys.currentEstimates();
+                    if (enable_stepping)
+                    {
+                        next_timestep = false;
+                    }
+                    i++;
+                }
+
+                if (draw_factor_graph)
+                {
+                    ImGui::Begin("Factor graph");
+                    if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
+                    {
+                        nlf_graph = slam_sys.getGraph();
+                        viz::draw_factor_graph(nlf_graph, estimates);
+                        ImPlot::EndPlot();
+                    }
+                    ImGui::End(); // Factor graph
+                }
+
+                viz::render();
             }
             NonlinearFactorGraph::shared_ptr graphNoKernel;
             Values::shared_ptr initial2;
@@ -163,11 +243,23 @@ int main(int argc, char **argv)
                 ImGui::Checkbox("Enable stepping", &enable_stepping);
                 if (enable_stepping)
                 {
+                    std::cout << "Stepping enabled!\n";
                     ImGui::SameLine(0.0f, 100.0f);
                     next_timestep = ImGui::Button("Next timestep");
+                    if (next_timestep)
+                    {
+                        ImGui::Text("Button pressed!");
+                        cout << "Button pressed!\n";
+                    }
+                    else
+                    {
+                        ImGui::Text("Button not pressed :(");
+                        cout << "Button not pressed :(\n";
+                    }
                 }
                 else
                 {
+                    std::cout << "Stepping not enabled!\n";
                     next_timestep = true;
                 }
                 ImGui::Checkbox("Draw factor graph", &draw_factor_graph);
@@ -176,9 +268,9 @@ int main(int argc, char **argv)
 
                 if (next_timestep)
                 {
-
                     const slam::Timestep2D &timestep = timesteps[i];
                     step = timestep.step;
+                    const auto &graph = slam_sys.getGraph();
 
                     start_t = std::chrono::high_resolution_clock::now();
                     slam_sys.processTimestep(timestep);
@@ -199,12 +291,14 @@ int main(int argc, char **argv)
                     {
                         next_timestep = false;
                     }
+                    i++;
                 }
 
                 if (draw_factor_graph)
                 {
                     ImGui::Begin("Factor graph");
-                    if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1))) {
+                    if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
+                    {
                         const auto &graph = slam_sys.getGraph();
                         viz::draw_factor_graph(graph, estimates);
                         ImPlot::EndPlot();
@@ -213,11 +307,6 @@ int main(int argc, char **argv)
                 }
 
                 viz::render();
-                if (next_timestep)
-                {
-                    i++;
-                    next_timestep = true;
-                }
             }
             NonlinearFactorGraph::shared_ptr graphNoKernel;
             Values::shared_ptr initial2;
@@ -228,10 +317,23 @@ int main(int argc, char **argv)
             os.close();
         }
     }
-    catch (gtsam::IndeterminantLinearSystemException &indetErr)
+    catch (slam::IndeterminantLinearSystemExceptionWithGraphValues &indetErr)
     { // when run in terminal: tbb::captured_exception
         std::cout << "Optimization failed" << std::endl;
         std::cout << indetErr.what() << std::endl;
+        while (viz::running())
+        {
+            viz::new_frame();
+            ImGui::Begin("Factor graph");
+            if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
+            {
+                viz::draw_factor_graph(indetErr.graph, indetErr.values);
+                ImPlot::EndPlot();
+            }
+            ImGui::End();
+            viz::render();
+        }
+
         if (argc > 5)
         {
             string other_msg = "None";
