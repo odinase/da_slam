@@ -8,6 +8,7 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/geometry/Pose3.h>
 #include <vector>
+#include <memory>
 
 #include "slam/types.h"
 #include "data_association/Hypothesis.h"
@@ -25,7 +26,7 @@ namespace slam
     {
     private:
         gtsam::NonlinearFactorGraph graph_;
-        gtsam::ISAM2 isam_;
+        std::unique_ptr<gtsam::ISAM2> isam_;
 
         gtsam::Values initial_estimates_;
         gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_;
@@ -47,14 +48,14 @@ namespace slam
     public:
         SLAM();
 
-        inline const gtsam::Values currentEstimates() const { return isam_.calculateEstimate(); }
+        inline const gtsam::Values currentEstimates() const { return isam_->calculateEstimate(); }
         void processTimestep(const Timestep<POSE, POINT>& timestep);
         void initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
-        inline const gtsam::NonlinearFactorGraph& getGraph() const { return isam_.getFactorsUnsafe(); }
-        inline double error() const { return isam_.getFactorsUnsafe().error(currentEstimates()); }
-        inline void update() { isam_.update(); }
+        inline const gtsam::NonlinearFactorGraph& getGraph() const { return isam_->getFactorsUnsafe(); }
+        inline double error() const { return getGraph().error(currentEstimates()); }
+        inline void update() { isam_->update(); }
         void update(gtsam::NonlinearFactorGraph& graph, gtsam::Values& initial_estimates);
     };
 

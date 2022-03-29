@@ -9,6 +9,11 @@
 #include <gtsam/sam/BearingRangeFactor.h>
 #include <gtsam/slam/dataset.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
+#include <gtsam/nonlinear/ISAM2.h>
+
+#include <memory>
+
+
 namespace slam {
 
 template <class POSE>
@@ -39,19 +44,11 @@ using Timestep2D = Timestep<gtsam::Pose2, gtsam::Point2>;
 using Timestep3D = Timestep<gtsam::Pose3, gtsam::Point3>;
 
 
-struct Landmark {
-    unsigned long int id_gt;
-    gtsam::Key key;
-    gtsam::Pose3 pose;
-};
-
-struct IndeterminantLinearSystemExceptionWithGraphValues : public gtsam::IndeterminantLinearSystemException {
-    gtsam::NonlinearFactorGraph graph;
-    gtsam::Values values;
-    IndeterminantLinearSystemExceptionWithGraphValues(const gtsam::IndeterminantLinearSystemException& err, const gtsam::NonlinearFactorGraph& graph_, const gtsam::Values& values_) :
+struct IndeterminantLinearSystemExceptionWithISAM : public gtsam::IndeterminantLinearSystemException {
+    std::unique_ptr<gtsam::ISAM2> isam;
+    IndeterminantLinearSystemExceptionWithISAM(const gtsam::IndeterminantLinearSystemException& err, std::unique_ptr<gtsam::ISAM2> isam_) noexcept :
     gtsam::IndeterminantLinearSystemException(err.nearbyVariable()),
-     graph(graph_),
-     values(values_)
+     isam(std::move(isam_))
       {}
 };
 

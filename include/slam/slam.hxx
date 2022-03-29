@@ -33,7 +33,7 @@ namespace slam
     params.setRelinearizeThreshold(0.1);
     params.setRelinearizeSkip(1);
 
-    isam_ = gtsam::ISAM2(params);
+    isam_ = std::make_unique<gtsam::ISAM2>(params);
   }
 
   template <class POSE, class POINT>
@@ -53,7 +53,7 @@ namespace slam
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
       std::cerr << "Error when initializing prior!\n";
-      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, getGraph(), currentEstimates());
+      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_));
     }
   }
 
@@ -100,8 +100,8 @@ namespace slam
       return;
     }
 
-    const gtsam::NonlinearFactorGraph &full_graph = isam_.getFactorsUnsafe();
-    const gtsam::Values &estimates = isam_.calculateEstimate();
+    const gtsam::NonlinearFactorGraph &full_graph = getGraph();
+    const gtsam::Values &estimates = currentEstimates();
 
     gtsam::Marginals marginals = gtsam::Marginals(full_graph, estimates);
 
@@ -167,7 +167,7 @@ namespace slam
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
       std::cerr << "Error when updating with new measurements!\n";
-      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, getGraph(), currentEstimates());
+      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_));
     }
 
     // Call update extra times to relinearize with new loop closure
@@ -184,7 +184,7 @@ namespace slam
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
       std::cerr << "Error running multiple updates because of loop closure!\n";
-      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, getGraph(), currentEstimates());
+      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_));
       }
     }
   }
@@ -203,7 +203,7 @@ namespace slam
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
       std::cerr << "Error when adding odom!\n";
-      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, getGraph(), currentEstimates());
+      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_));
       }
 
     incrementLatestPoseKey();
@@ -230,7 +230,7 @@ namespace slam
   template <class POSE, class POINT>
   void SLAM<POSE, POINT>::update(gtsam::NonlinearFactorGraph &graph, gtsam::Values &initial_estimates)
   {
-    isam_.update(graph_, initial_estimates_);
+    isam_->update(graph_, initial_estimates_);
 
     graph.resize(0);
     initial_estimates.clear();

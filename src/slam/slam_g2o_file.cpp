@@ -317,17 +317,21 @@ int main(int argc, char **argv)
             os.close();
         }
     }
-    catch (slam::IndeterminantLinearSystemExceptionWithGraphValues &indetErr)
+    catch (slam::IndeterminantLinearSystemExceptionWithISAM &indetErr)
     { // when run in terminal: tbb::captured_exception
         std::cout << "Optimization failed" << std::endl;
         std::cout << indetErr.what() << std::endl;
+
+        const gtsam::NonlinearFactorGraph& graph = indetErr.isam->getFactorsUnsafe();
+        const gtsam::Values& values = indetErr.isam->calculateEstimate();
+
         while (viz::running())
         {
             viz::new_frame();
             ImGui::Begin("Factor graph");
             if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
             {
-                viz::draw_factor_graph(indetErr.graph, indetErr.values);
+                viz::draw_factor_graph(graph, values);
                 ImPlot::EndPlot();
             }
             ImGui::End();
