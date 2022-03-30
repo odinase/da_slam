@@ -323,7 +323,15 @@ int main(int argc, char **argv)
         std::cout << indetErr.what() << std::endl;
 
         const gtsam::NonlinearFactorGraph& graph = indetErr.isam->getFactorsUnsafe();
+        graph.print("Graph");
         const gtsam::Values& values = indetErr.isam->calculateEstimate();
+        values.print("\nValues");
+
+        const gtsam::Values& lin_point = indetErr.isam->getLinearizationPoint();
+
+        boost::shared_ptr<gtsam::GaussianFactorGraph> lin_graph = graph.linearize(lin_point);
+        std::vector<std::tuple<int, int, double>> jac = lin_graph->sparseJacobian();
+
 
         while (viz::running())
         {
