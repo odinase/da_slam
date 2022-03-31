@@ -23,7 +23,91 @@ using gtsam::symbol_shorthand::L; // gtsam/slam/dataset.cpp
 using namespace std;
 using namespace gtsam;
 
+using gtsam::symbol_shorthand::X;
+using gtsam::symbol_shorthand::L;
+
+
 namespace viz = visualization;
+
+
+
+
+std::optional<std::pair<gtsam::Key, gtsam::Key>> nonlinearFactor2keys(const gtsam::NonlinearFactor::shared_ptr &factor)
+{
+    boost::shared_ptr<PoseToPointFactor<Pose2, Point2>> measFactor2d = boost::dynamic_pointer_cast<PoseToPointFactor<Pose2, Point2>>(factor);
+    if (measFactor2d)
+    {
+        return std::make_pair(measFactor2d->key1(), measFactor2d->key2());
+    }
+
+    boost::shared_ptr<PoseToPointFactor<Pose3, Point3>> measFactor3d = boost::dynamic_pointer_cast<PoseToPointFactor<Pose3, Point3>>(factor);
+    if (measFactor3d)
+    {
+        return std::make_pair(measFactor3d->key1(), measFactor3d->key2());
+    }
+
+    boost::shared_ptr<BetweenFactor<Pose2>> odomFactor2d = boost::dynamic_pointer_cast<BetweenFactor<Pose2>>(factor);
+    if (odomFactor2d)
+    {
+        return std::make_pair(odomFactor2d->key1(), odomFactor2d->key2());
+    }
+
+    boost::shared_ptr<BetweenFactor<Pose3>> odomFactor3d = boost::dynamic_pointer_cast<BetweenFactor<Pose3>>(factor);
+    if (odomFactor3d)
+    {
+        return std::make_pair(odomFactor3d->key1(), odomFactor3d->key2());
+    }
+
+    return std::nullopt;
+}
+
+gtsam::KeySet bfs(const gtsam::NonlinearFactorGraph &graph)
+{
+    if (graph.size() == 0)
+    {
+        return {};
+    }
+
+    gtsam::KeySet key_set;
+    std::deque<size_t> factors;
+    gtsam::Key k = X(0); // Must at least have the first pose;
+    factors.push_front(k);
+
+    while (factors.size() > 0)
+    {
+        k = factors.front();
+        factors.pop_front();
+        key_set.insert(k);
+        auto finder = [&k](const gtsam::NonlinearFactor::shared_ptr factor) -> bool
+        {
+            auto keys = nonlinearFactor2keys(factor);
+            return (keys ? keys->first == k : false);
+        };
+        cout << "Visiting variable " << Symbol(k) << "\n";
+        auto it = graph.begin();
+        while ((it = std::find_if(it, graph.end(), finder)) != graph.end())
+        {
+            auto keys = nonlinearFactor2keys(*it);
+            if (keys)
+            {
+                factors.push_front(keys->second);
+            }
+            ++it;
+        }
+    }
+    return key_set;
+}
+
+bool connected_graph(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& estimates) {
+    gtsam::KeySet keys_from_x0 = bfs(graph);
+    for (gtsam::Key k : estimates.keys()) {
+        if (!keys_from_x0.exists(k)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -332,6 +416,12 @@ int main(int argc, char **argv)
         boost::shared_ptr<gtsam::GaussianFactorGraph> lin_graph = graph.linearize(lin_point);
         std::vector<std::tuple<int, int, double>> jac = lin_graph->sparseJacobian();
 
+
+        if (connected_graph(graph, values)) {
+            cout << "Connected graph!\n";
+        } else {
+            cout << "Not connected graph!\n";
+        }
 
         while (viz::running())
         {
