@@ -17,20 +17,16 @@
 #include "slam/slam.h"
 #include "slam/types.h"
 #include "data_association/ml/MaximumLikelihood.h"
+#include "data_association/DataAssociation.h"
 #include "visualization/visualization.h"
 
-using gtsam::symbol_shorthand::L; // gtsam/slam/dataset.cpp
 using namespace std;
 using namespace gtsam;
 
-using gtsam::symbol_shorthand::X;
 using gtsam::symbol_shorthand::L;
-
+using gtsam::symbol_shorthand::X;
 
 namespace viz = visualization;
-
-
-
 
 std::optional<std::pair<gtsam::Key, gtsam::Key>> nonlinearFactor2keys(const gtsam::NonlinearFactor::shared_ptr &factor)
 {
@@ -61,7 +57,7 @@ std::optional<std::pair<gtsam::Key, gtsam::Key>> nonlinearFactor2keys(const gtsa
     return std::nullopt;
 }
 
-gtsam::KeySet bfs(const gtsam::NonlinearFactorGraph &graph)
+gtsam::KeySet dfs(const gtsam::NonlinearFactorGraph &graph)
 {
     if (graph.size() == 0)
     {
@@ -83,7 +79,6 @@ gtsam::KeySet bfs(const gtsam::NonlinearFactorGraph &graph)
             auto keys = nonlinearFactor2keys(factor);
             return (keys ? keys->first == k : false);
         };
-        cout << "Visiting variable " << Symbol(k) << "\n";
         auto it = graph.begin();
         while ((it = std::find_if(it, graph.end(), finder)) != graph.end())
         {
@@ -98,16 +93,18 @@ gtsam::KeySet bfs(const gtsam::NonlinearFactorGraph &graph)
     return key_set;
 }
 
-bool connected_graph(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& estimates) {
-    gtsam::KeySet keys_from_x0 = bfs(graph);
-    for (gtsam::Key k : estimates.keys()) {
-        if (!keys_from_x0.exists(k)) {
+bool connected_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates)
+{
+    gtsam::KeySet keys_from_x0 = dfs(graph);
+    for (gtsam::Key k : estimates.keys())
+    {
+        if (!keys_from_x0.exists(k))
+        {
             return false;
         }
     }
     return true;
 }
-
 
 int main(int argc, char **argv)
 {
@@ -185,11 +182,12 @@ int main(int argc, char **argv)
 
     bool early_stop = false;
     bool next_timestep = true;
-    bool enable_stepping = true;
+    bool enable_stepping = false;
     bool draw_factor_graph = true;
-    bool enable_step_limit = true;
+    bool enable_step_limit = false;
     int step_to_increment_to = 0;
-    
+    bool autofit = true;
+
     try
     {
         if (is3D)
@@ -202,24 +200,6 @@ int main(int argc, char **argv)
             std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
             slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
-            //             for (const auto &timestep : timesteps)
-            //             {
-            //                 start_t = std::chrono::high_resolution_clock::now();
-            //                 slam_sys.processTimestep(timestep);
-            //                 end_t = std::chrono::high_resolution_clock::now();
-            //                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
-            // #ifdef LOGGING
-            //                 avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
-            //                 cout << "Duration: " << duration << " seconds\n"
-            //                      << "Average time one iteration: " << avg_time << " seconds\n";
-            // #endif
-            // #ifdef HEARTBEAT
-            //                 cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
-            // #endif
-            //                 total_time += duration;
-            //                 final_error = slam_sys.error();
-            //                 estimates = slam_sys.currentEstimates();
-            //             }
 
             size_t i = 0;
             int step = timesteps[i].step;
@@ -253,6 +233,7 @@ int main(int argc, char **argv)
                 }
 
                 ImGui::Checkbox("Draw factor graph", &draw_factor_graph);
+                ImGui::Checkbox("Autofit plot", &autofit);
                 ImGui::End(); // Menu
 
                 if (next_timestep && step < step_to_increment_to)
@@ -285,6 +266,10 @@ int main(int argc, char **argv)
                 if (draw_factor_graph)
                 {
                     ImGui::Begin("Factor graph");
+                    if (autofit)
+                    {
+                        ImPlot::SetNextAxesToFit();
+                    }
                     if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
                     {
                         nlf_graph = slam_sys.getGraph();
@@ -327,30 +312,31 @@ int main(int argc, char **argv)
                 ImGui::Checkbox("Enable stepping", &enable_stepping);
                 if (enable_stepping)
                 {
-                    std::cout << "Stepping enabled!\n";
                     ImGui::SameLine(0.0f, 100.0f);
                     next_timestep = ImGui::Button("Next timestep");
-                    if (next_timestep)
-                    {
-                        ImGui::Text("Button pressed!");
-                        cout << "Button pressed!\n";
-                    }
-                    else
-                    {
-                        ImGui::Text("Button not pressed :(");
-                        cout << "Button not pressed :(\n";
-                    }
                 }
                 else
                 {
-                    std::cout << "Stepping not enabled!\n";
                     next_timestep = true;
                 }
+                ImGui::Checkbox("Set step to increment to", &enable_step_limit);
+                if (enable_step_limit)
+                {
+                    // ImGui::SameLine(0.0f, 100.0f);
+                    ImGui::SetNextItemWidth(150.0f);
+                    ImGui::InputInt("Step to increment to", &step_to_increment_to);
+                }
+                else
+                {
+                    step_to_increment_to = std::numeric_limits<int>::max();
+                }
+
                 ImGui::Checkbox("Draw factor graph", &draw_factor_graph);
+                ImGui::Checkbox("Autofit plot", &autofit);
 
                 ImGui::End(); // Menu
 
-                if (next_timestep)
+                if (next_timestep && step < step_to_increment_to)
                 {
                     const slam::Timestep2D &timestep = timesteps[i];
                     step = timestep.step;
@@ -381,6 +367,10 @@ int main(int argc, char **argv)
                 if (draw_factor_graph)
                 {
                     ImGui::Begin("Factor graph");
+                    if (autofit)
+                    {
+                        ImPlot::SetNextAxesToFit();
+                    }
                     if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
                     {
                         const auto &graph = slam_sys.getGraph();
@@ -405,31 +395,100 @@ int main(int argc, char **argv)
     { // when run in terminal: tbb::captured_exception
         std::cout << "Optimization failed" << std::endl;
         std::cout << indetErr.what() << std::endl;
+        std::cout << "Error occured when:\n"
+                  << indetErr.when << "\n";
 
-        const gtsam::NonlinearFactorGraph& graph = indetErr.isam->getFactorsUnsafe();
-        graph.print("Graph");
-        const gtsam::Values& values = indetErr.isam->calculateEstimate();
-        values.print("\nValues");
+        const gtsam::NonlinearFactorGraph &graph = indetErr.isam->getFactorsUnsafe();
+        // graph.print("Graph");
+        const gtsam::Values &values = indetErr.isam->calculateEstimate();
+        // values.print("\nValues");
 
-        const gtsam::Values& lin_point = indetErr.isam->getLinearizationPoint();
+        // const gtsam::Values &lin_point = indetErr.isam->getLinearizationPoint();
 
-        boost::shared_ptr<gtsam::GaussianFactorGraph> lin_graph = graph.linearize(lin_point);
-        std::vector<std::tuple<int, int, double>> jac = lin_graph->sparseJacobian();
+        // boost::shared_ptr<gtsam::GaussianFactorGraph> lin_graph = graph.linearize(lin_point);
+        // auto [A, b] = lin_graph->jacobian();
 
+        // std::ofstream jac_file("/home/mrg/prog/C++/da-slam/A.txt");
+        // std::ofstream b_file("/home/mrg/prog/C++/da-slam/b.txt");
+        // std::ofstream keys_file("/home/mrg/prog/C++/da-slam/keys.txt");
 
-        if (connected_graph(graph, values)) {
+        // jac_file << A << "\n";
+        // b_file << b << "\n";
+        // gtsam::KeySet ks = lin_graph->keys();
+        // gtsam::KeyVector kk(ks.begin(), ks.end());
+        // for (auto k : kk)
+        // {
+        //     keys_file << Symbol(k) << "\n";
+        // }
+        // jac_file.close();
+        // b_file.close();
+        // keys_file.close();
+
+        if (connected_graph(graph, values))
+        {
             cout << "Connected graph!\n";
-        } else {
+        }
+        else
+        {
             cout << "Not connected graph!\n";
         }
+
+        // graph.saveGraph(cout);
+
+        // bool draw_problem_var = false;
+        bool autofit = true;
 
         while (viz::running())
         {
             viz::new_frame();
+            // ImGui::Begin("Debugging");
+            // ImGui::Checkbox("Indicate variable that caused error", &draw_problem_var);
+            // ImGui::End();
+            ImGui::Begin("Config");
+            ImGui::Checkbox("Autofit plot", &autofit);
+            ImGui::End();
             ImGui::Begin("Factor graph");
+            if (autofit)
+            {
+                ImPlot::SetNextAxesToFit();
+            }
             if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
             {
                 viz::draw_factor_graph(graph, values);
+
+                // if (draw_problem_var)
+                // {
+                gtsam::Point2 p;
+                if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'l')
+                {
+                    if (is3D)
+                    {
+                        const auto &l = values.at<gtsam::Point3>(indetErr.nearbyVariable());
+                        p << l.x(), l.y();
+                    }
+                    else
+                    {
+                        p = values.at<gtsam::Point2>(indetErr.nearbyVariable());
+                    }
+                }
+                else if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'x')
+                {
+                    if (is3D)
+                    {
+                        const auto &x = values.at<gtsam::Pose3>(indetErr.nearbyVariable());
+                        p << x.x(), x.y();
+                    }
+                    else
+                    {
+                        p = values.at<gtsam::Pose2>(indetErr.nearbyVariable()).translation();
+                    }
+                }
+                viz::draw_circle(p);
+                ImGui::Begin("Debugging");
+                ImGui::Text("Problem variable: %s at\n[%f, %f]", gtsam::Symbol(indetErr.nearbyVariable()).string().c_str(), p(0), p(1));
+                ImGui::End();
+                // }
+
                 ImPlot::EndPlot();
             }
             ImGui::End();

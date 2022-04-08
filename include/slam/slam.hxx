@@ -8,6 +8,7 @@
 #include <gtsam/nonlinear/PriorFactor.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/nonlinear/DoglegOptimizer.h>
+#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 
 #include <gtsam/base/FastVector.h>
 #include <gtsam/geometry/Pose3.h>
@@ -30,7 +31,7 @@ namespace slam
   {
     gtsam::ISAM2Params params;
     params.setOptimizationParams(gtsam::ISAM2DoglegParams());
-    params.setRelinearizeThreshold(0.1);
+    params.setRelinearizeThreshold(0.001);
     params.setRelinearizeSkip(1);
 
     isam_ = std::make_unique<gtsam::ISAM2>(params);
@@ -52,8 +53,7 @@ namespace slam
     }
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
-      std::cerr << "Error when initializing prior!\n";
-      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_));
+      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error when initializing prior!");
     }
   }
 
@@ -166,8 +166,7 @@ namespace slam
     }
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
-      std::cerr << "Error when updating with new measurements!\n";
-      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_));
+      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error when updating with new measurements!");
     }
 
     // Call update extra times to relinearize with new loop closure
@@ -175,16 +174,14 @@ namespace slam
     {
       try
       {
-
         for (int i = 0; i < 20; i++)
         {
           update();
         }
       }
-    catch (gtsam::IndeterminantLinearSystemException &indetErr)
-    {
-      std::cerr << "Error running multiple updates because of loop closure!\n";
-      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_));
+      catch (gtsam::IndeterminantLinearSystemException &indetErr)
+      {
+        throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error running multiple updates because of loop closure!");
       }
     }
   }
@@ -202,9 +199,8 @@ namespace slam
     }
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
-      std::cerr << "Error when adding odom!\n";
-      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_));
-      }
+      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error when adding odom!");
+    }
 
     incrementLatestPoseKey();
   }

@@ -31,6 +31,32 @@ namespace visualization {
 
     // Assumes that factors are PoseToPoint 2D, robot is pose and landmarks are points
     void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates);
-    void draw_covar_ell(const Eigen::Vector2d& l, const Eigen::Matrix2d& S, const double s, const char* covariance_label = "Covariance", const int n = 200);
+    void draw_covar_ell(const Eigen::Vector2d& l, const Eigen::Matrix2d& S, const double s = 1.0, const char* covariance_label = "Covariance", const int n = 200);
+    void draw_circle(const Eigen::Vector2d& center, const double r = 1.0, const int n = 200);
+    // Eigen::MatrixXd ellipse(const Eigen::Vector2d &mu, const Eigen::Matrix2d &P, const double s = 1.0, const int n = 200);
+    // Eigen::MatrixXd ellipse(const Eigen::Vector3d &mu, const Eigen::Matrix3d &P, const double s = 1.0, const int n = 200)
+
+    // template<class POSE, class POINT>
+    // void draw_marginal_covar_ells(
+    //     const gtsam::Values& estimates,
+    //     const gtsam::Marginals& marginals,
+    //     const double s,
+    //     const char* covariance_label = "Covariance", const int n = 200)
+    // {
+    //     for (gtsam::Key k : estimates.keys()) {
+    //         Eigen::MatrixXd ell;
+    //         if (gtsam::symbolChr(k) == 'l') {
+    //             const POINT& l = estimates.at<POINT>(k);
+    //         }
+    //         else if (gtsam::symbolChr(k) == 'x') {
+
+
+    //     } else {
+    //         continue; // Should not happen
+    //     }
+    //     Eigen::MatrixXd ell = ellipse(l, S, s, n);
+    //     ImPlot::PlotLine(covariance_label, &ell(0, 0), &ell(1, 0), n, 0, 2 * sizeof(double));
+    //     ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
+    //     ImPlot::PlotScatter("lmk", &l(0), &l(1), 1);
 
 } // namespace visualization

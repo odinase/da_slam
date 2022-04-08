@@ -1,7 +1,6 @@
 #ifndef DATA_ASSOCIATION_H
 #define DATA_ASSOCIATION_H
 
-
 #include "data_association/Hypothesis.h"
 #include <limits>
 #include <memory>
@@ -16,6 +15,8 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include "slam/types.h"
+
 
 namespace da
 {
@@ -24,7 +25,6 @@ namespace da
   class DataAssociation
   {
   public:
-  
     virtual hypothesis::Hypothesis associate(
         const gtsam::Values &estimates,
         const gtsam::Marginals &marginals,
@@ -46,8 +46,7 @@ namespace da
       const gtsam::JointMarginal &joint_marginals,
       const gtsam::FastVector<MEASUREMENT> &measurements,
       std::optional<std::reference_wrapper<double>> log_norm_factor = {},
-      std::optional<Eigen::Ref<Eigen::MatrixXd>> S_ = {}
-      )
+      std::optional<Eigen::Ref<Eigen::MatrixXd>> S_ = {})
   {
     int rows = a.Hx.rows();
     int cols = a.Hx.cols() + a.Hl.cols();
@@ -57,30 +56,32 @@ namespace da
     Eigen::MatrixXd Pxx = joint_marginals(x_key, x_key);
     Eigen::MatrixXd Pll = joint_marginals(*a.landmark, *a.landmark);
     Eigen::MatrixXd Pxl = joint_marginals(x_key, *a.landmark);
-    const auto& Plx = Pxl.transpose();
+    const auto &Plx = Pxl.transpose();
 
     rows = Pxx.rows() + Pll.rows();
     cols = rows;
-    
+
     Eigen::MatrixXd P(rows, cols);
     P << Pxx, Pxl,
-         Plx, Pll;
+        Plx, Pll;
 
     Eigen::MatrixXd R = measurements[a.measurement].noise->sigmas().array().square().matrix().asDiagonal();
 
     Eigen::MatrixXd S = H * P * H.transpose() + R;
 
-    if (S_) {
+    if (S_)
+    {
       S_ = S;
     }
 
-    const Eigen::VectorXd& innov = a.error;
+    const Eigen::VectorXd &innov = a.error;
 
     Eigen::LLT<Eigen::MatrixXd> chol = S.llt();
-    auto& L = chol.matrixL();
+    auto &L = chol.matrixL();
 
-    if (log_norm_factor) {
-      log_norm_factor->get() = 2.0*L.toDenseMatrix().diagonal().array().log().sum();
+    if (log_norm_factor)
+    {
+      log_norm_factor->get() = 2.0 * L.toDenseMatrix().diagonal().array().log().sum();
     }
 
     return innov.transpose() * chol.solve(innov);
@@ -203,11 +204,47 @@ namespace da
     return nis;
   }
 
+  template <class POSE, class POINT>
+  std::pair<gtsam::Vector, gtsam::Matrix> innovation(
+      gtsam::Key x_key,
+      gtsam::Key lmk_key,
+      const POSE& x,
+      const POINT& l,
+      const gtsam::JointMarginal &joint_marginal,
+      const slam::Measurement<POINT> &measurement)
+  {
+    gtsam::Matrix Hx, Hl;
+    gtsam::PoseToPointFactor<POSE, POINT> factor(x_key, lmk_key, measurement.measurement, measurement.noise);
+    gtsam::Vector innovation = factor.evaluateError(x, l, Hx, Hl);
+
+    int rows = Hx.rows();
+    int cols = Hx.cols() + Hl.cols();
+    Eigen::MatrixXd H(rows, cols);
+    H << Hx, Hl;
+
+    Eigen::MatrixXd Pxx = joint_marginal(x_key, x_key);
+    Eigen::MatrixXd Pll = joint_marginal(lmk_key, lmk_key);
+    Eigen::MatrixXd Pxl = joint_marginal(x_key, lmk_key);
+    const auto &Plx = Pxl.transpose();
+
+    rows = Pxx.rows() + Pll.rows();
+    cols = rows;
+
+    Eigen::MatrixXd P(rows, cols);
+    P << Pxx, Pxl,
+        Plx, Pll;
+
+    Eigen::MatrixXd R = measurement.noise->sigmas().array().square().matrix().asDiagonal();
+
+    Eigen::MatrixXd S = H * P * H.transpose() + R;
+
+    return {innovation, S};
+  }
+
   double chi2inv(double p, unsigned int dim);
-  std::vector<int> auction(const Eigen::MatrixXd& problem, double eps = 1e-3, uint64_t max_iterations = 10'000);
+  std::vector<int> auction(const Eigen::MatrixXd &problem, double eps = 1e-3, uint64_t max_iterations = 10'000);
   std::vector<int> hungarian(const Eigen::MatrixXd &cost_matrix);
 
 } // namespace da
-
 
 #endif // DATA_ASSOCIATION_H

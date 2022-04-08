@@ -46,9 +46,11 @@ using Timestep3D = Timestep<gtsam::Pose3, gtsam::Point3>;
 
 struct IndeterminantLinearSystemExceptionWithISAM : public gtsam::IndeterminantLinearSystemException {
     std::unique_ptr<gtsam::ISAM2> isam;
-    IndeterminantLinearSystemExceptionWithISAM(const gtsam::IndeterminantLinearSystemException& err, std::unique_ptr<gtsam::ISAM2> isam_) noexcept :
+    std::string when;
+    IndeterminantLinearSystemExceptionWithISAM(const gtsam::IndeterminantLinearSystemException& err, std::unique_ptr<gtsam::ISAM2> isam_, const char* when_) noexcept :
     gtsam::IndeterminantLinearSystemException(err.nearbyVariable()),
-     isam(std::move(isam_))
+     isam(std::move(isam_)),
+     when(when_)
       {}
 };
 

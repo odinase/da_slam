@@ -27,6 +27,7 @@
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/inference/Symbol.h>
+#include <gtsam/nonlinear/Marginals.h>
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
 
@@ -45,6 +46,27 @@ Eigen::MatrixXd ellipse(const Eigen::Vector2d &mu, const Eigen::Matrix2d &P, con
     Eigen::MatrixXd ell = (s * chol.matrixL().toDenseMatrix() * points).colwise() + mu;
     return ell;
 }
+
+Eigen::MatrixXd circle(const Eigen::Vector2d &center, const double r = 1.0, const int n = 200)
+{
+    Eigen::RowVectorXd thetas = Eigen::RowVectorXd::LinSpaced(n, 0, 2.0 * M_PI);
+    Eigen::MatrixXd points(2, n);
+    points << thetas.array().cos(),
+              thetas.array().sin();
+    Eigen::MatrixXd circ = points.colwise() + center;
+    return circ;
+}
+
+// Eigen::MatrixXd ellipse(const Eigen::Vector3d &mu, const Eigen::Matrix3d &P, const double s = 1.0, const int n = 200)
+// {
+//     Eigen::RowVectorXd thetas = Eigen::RowVectorXd::LinSpaced(n, 0, 2.0 * M_PI);
+//     Eigen::MatrixXd points(2, n);
+//     points << thetas.array().cos(),
+//         thetas.array().sin();
+//     Eigen::LLT<Eigen::Matrix2d> chol(P);
+//     Eigen::MatrixXd ell = (s * chol.matrixL().toDenseMatrix() * points).colwise() + mu;
+//     return ell;
+// }
 
 namespace ImGui
 {
@@ -197,118 +219,6 @@ namespace visualization
         glfwTerminate();
     }
 
-    // // Assumes that factors are PoseToPoint 2D, robot is pose and landmarks are points
-    // void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates)
-    // {
-    //     gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>::shared_ptr meas2d;
-    //     gtsam::BetweenFactor<gtsam::Pose2>::shared_ptr odom2d;
-
-    //     gtsam::PoseToPointFactor<gtsam::Pose3, gtsam::Point3>::shared_ptr meas3d;
-    //     gtsam::BetweenFactor<gtsam::Pose3>::shared_ptr odom3d;
-
-    //     std::stringstream ss;
-    //     std::string text;
-
-    //     for (const auto &factor_ : graph)
-    //     { // inspired by dataset.cpp/writeG2o
-    //         meas2d = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>>(factor_);
-    //         odom2d = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose2>>(factor_);
-    //         meas3d = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose3, gtsam::Point3>>(factor_);
-    //         odom3d = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(factor_);
-    //         double line[4]; // = {0.0, 0.0, 0.0, 0.0};
-    //         if (meas2d)
-    //         {
-    //             gtsam::Key x_key = meas2d->key1();
-    //             gtsam::Key lmk_key = meas2d->key2();
-    //             gtsam::Pose2 x = estimates.at<gtsam::Pose2>(x_key);
-    //             gtsam::Point2 l = estimates.at<gtsam::Point2>(lmk_key);
-
-    //             line[0] = x.x();
-    //             line[1] = l.x();
-
-    //             line[2] = x.y();
-    //             line[3] = l.y();
-
-    //             ImPlot::PlotLine("Measurement", line, line + 2, 2);
-    //             ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
-    //             ImPlot::PlotScatter("Landmark", &l.x(), &l.y(), 1);
-    //             // PlotText(const char* text, double x, double y, bool vertical=false, const ImVec2& pix_offset=ImVec2(0,0));
-    //             ss << gtsam::Symbol(lmk_key);
-    //             text = ss.str();
-    //             ImPlot::PlotText(text.c_str(), l.x(), l.y());
-    //             ss.str("");
-    //         }
-    //         if (odom2d)
-    //         {
-    //             gtsam::Key x_from_key = odom2d->key1();
-    //             gtsam::Key x_to_key = odom2d->key2();
-    //             gtsam::Pose2 x_from = estimates.at<gtsam::Pose2>(x_from_key);
-    //             gtsam::Pose2 x_to = estimates.at<gtsam::Pose2>(x_to_key);
-
-    //             line[0] = x_from.x();
-    //             line[1] = x_to.x();
-
-    //             line[2] = x_from.y();
-    //             line[3] = x_to.y();
-
-    //             ImPlot::PlotLine("Odometry", line, line + 2, 2);
-    //             ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
-    //             ImPlot::PlotScatter("Poses", line, line + 2, 2);
-
-    //             ss << gtsam::Symbol(x_to_key);
-    //             text = ss.str();
-    //             ImPlot::PlotText(text.c_str(), x_to.x(), x_to.y());
-    //             ss.str("");
-    //         }
-    //         if (meas3d)
-    //         {
-    //             gtsam::Key x_key = meas3d->key1();
-    //             gtsam::Key lmk_key = meas3d->key2();
-
-    //             gtsam::Pose3 x = estimates.at<gtsam::Pose3>(x_key);
-    //             gtsam::Point3 l = estimates.at<gtsam::Point3>(lmk_key);
-
-    //             line[0] = x.x();
-    //             line[1] = l.x();
-
-    //             line[2] = x.y();
-    //             line[3] = l.y();
-
-    //             ImPlot::PlotLine("Measurement", line, line + 2, 2);
-    //             ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
-    //             ImPlot::PlotScatter("Landmark", &l.x(), &l.y(), 1);
-
-    //             ss << gtsam::Symbol(lmk_key);
-    //             text = ss.str();
-    //             ImPlot::PlotText(text.c_str(), l.x(), l.y());
-    //             ss.str("");
-    //         }
-    //         if (odom3d)
-    //         {
-    //             gtsam::Key x_from_key = odom3d->key1();
-    //             gtsam::Key x_to_key = odom3d->key2();
-
-    //             gtsam::Pose3 x_from = estimates.at<gtsam::Pose3>(x_from_key);
-    //             gtsam::Pose3 x_to = estimates.at<gtsam::Pose3>(x_to_key);
-
-    //             line[0] = x_from.x();
-    //             line[1] = x_to.x();
-
-    //             line[2] = x_from.y();
-    //             line[3] = x_to.y();
-
-    //             ImPlot::PlotLine("Odometry", line, line + 2, 2);
-    //             ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
-    //             ImPlot::PlotScatter("Poses", line, line + 2, 2);
-
-    //             ss << gtsam::Symbol(x_to_key);
-    //             text = ss.str();
-    //             ImPlot::PlotText(text.c_str(), x_to.x(), x_to.y(), false, ImVec2(15, 15));
-    //             ss.str("");
-    //         }
-    //     }
-    // }
-
     void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates)
     {
         gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>::shared_ptr meas2d;
@@ -449,14 +359,16 @@ namespace visualization
                 legend = "Landmarks";
                 ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
             }
-            else {
+            else
+            {
                 std::cerr << "Received key " << gtsam::Symbol(p.key) << " which could not be parsed, skipping\n";
-                continue;  // Should never happen??
+                continue; // Should never happen??
             }
 
-            if (!value_keys.exists(p.key)) { // Found value with no factor attached to it
+            if (!value_keys.exists(p.key))
+            { // Found value with no factor attached to it
                 ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 10.0, ImVec4(1.0, 0.0, 0.0, 1.0));
-            } 
+            }
             // else {
             //     value_keys.erase(p.key);
             // }
@@ -471,7 +383,7 @@ namespace visualization
         //     std::cout << "All values accounted for!\n";
         // } else {
         //     std::cout << "Not all values accounted for, still have\n";
-        //     for (const auto& k : value_keys) { 
+        //     for (const auto& k : value_keys) {
         //         std::cout << gtsam::Symbol(k) << "\n";
         //     }
         // }
@@ -483,6 +395,13 @@ namespace visualization
         ImPlot::PlotLine(covariance_label, &ell(0, 0), &ell(1, 0), n, 0, 2 * sizeof(double));
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
         ImPlot::PlotScatter("lmk", &l(0), &l(1), 1);
+    }
+
+    void draw_circle(const Eigen::Vector2d &center, const double r, const int n)
+    {
+        Eigen::MatrixXd circ = circle(center, r, n);
+        ImPlot::SetNextLineStyle(colors::UGLY_YELLOW, 20.0);
+        ImPlot::PlotLine("##circle", &circ(0, 0), &circ(1, 0), n, 0, 2 * sizeof(double));
     }
 
 } // namespace visualization
