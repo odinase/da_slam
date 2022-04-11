@@ -324,8 +324,12 @@ namespace visualization
 
         for (const gtsam::Values::ConstKeyValuePair p : estimates)
         {
-            if (gtsam::symbolChr(p.key) == 'x')
+            unsigned char chr;
+            uint64_t idx;
+            if (gtsam::symbolChr(p.key) == 'x' || gtsam::symbolChr(p.key) == '\0')
             {
+                chr = 'x';
+                idx = gtsam::symbolIndex(p.key);
                 try
                 {
                     gtsam::Pose2 x = p.value.cast<gtsam::Pose2>();
@@ -339,11 +343,13 @@ namespace visualization
                     yp = x.y();
                 }
                 legend = "Poses";
-                ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
                 ImPlot::PlotScatter("Poses", &xp, &yp, 1);
             }
             else if (gtsam::symbolChr(p.key) == 'l')
             {
+                chr = 'l';
+                idx = gtsam::symbolIndex(p.key);
                 try
                 {
                     gtsam::Point2 l = p.value.cast<gtsam::Point2>();
@@ -357,36 +363,26 @@ namespace visualization
                     yp = l.y();
                 }
                 legend = "Landmarks";
-                ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
             }
             else
             {
                 std::cerr << "Received key " << gtsam::Symbol(p.key) << " which could not be parsed, skipping\n";
+                std::cerr << "Chr: \"" << gtsam::symbolChr(p.key) << "\"\nIndex: " << gtsam::symbolIndex(p.key) << "\n";
                 continue; // Should never happen??
             }
 
             if (!value_keys.exists(p.key))
             { // Found value with no factor attached to it
-                ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 10.0, ImVec4(1.0, 0.0, 0.0, 1.0));
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 10.0, ImVec4(1.0, 0.0, 0.0, 1.0));
             }
-            // else {
-            //     value_keys.erase(p.key);
-            // }
 
             ImPlot::PlotScatter(legend.c_str(), &xp, &yp, 1);
-            ss << gtsam::Symbol(p.key);
+            ss << chr << idx;
             ImPlot::PlotText(ss.str().c_str(), xp, yp, false, ImVec2(15, 15));
             ss.str("");
         }
 
-        // if (value_keys.empty()) {
-        //     std::cout << "All values accounted for!\n";
-        // } else {
-        //     std::cout << "Not all values accounted for, still have\n";
-        //     for (const auto& k : value_keys) {
-        //         std::cout << gtsam::Symbol(k) << "\n";
-        //     }
-        // }
     }
 
     void draw_covar_ell(const Eigen::Vector2d &l, const Eigen::Matrix2d &S, const double s, const char *covariance_label, const int n)

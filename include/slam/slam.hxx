@@ -23,18 +23,15 @@
 
 namespace slam
 {
+  gtsam::Marginals::Factorization factorization = gtsam::Marginals::CHOLESKY;
+  using OptimizerParams = gtsam::GaussNewtonParams;
+  using Optimizer = gtsam::GaussNewtonOptimizer;
 
   template <class POSE, class POINT>
   SLAM<POSE, POINT>::SLAM()
       : latest_pose_key_(0),
         latest_landmark_key_(0)
   {
-    gtsam::ISAM2Params params;
-    params.setOptimizationParams(gtsam::ISAM2DoglegParams());
-    params.setRelinearizeThreshold(0.001);
-    params.setRelinearizeSkip(1);
-
-    isam_ = std::make_unique<gtsam::ISAM2>(params);
   }
 
   template <class POSE, class POINT>
@@ -45,16 +42,7 @@ namespace slam
 
     // Add prior on first pose
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
-    initial_estimates_.insert(X(latest_pose_key_), POSE());
-
-    try
-    {
-      update(graph_, initial_estimates_);
-    }
-    catch (gtsam::IndeterminantLinearSystemException &indetErr)
-    {
-      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error when initializing prior!");
-    }
+    estimates_.insert(X(latest_pose_key_), POSE());
   }
 
   template <class POSE, class POINT>
@@ -102,8 +90,15 @@ namespace slam
 
     const gtsam::NonlinearFactorGraph &full_graph = getGraph();
     const gtsam::Values &estimates = currentEstimates();
-
-    gtsam::Marginals marginals = gtsam::Marginals(full_graph, estimates);
+    gtsam::Marginals marginals;
+    try
+    {
+      marginals = gtsam::Marginals(full_graph, estimates, factorization);
+    }
+    catch (gtsam::IndeterminantLinearSystemException &indetErr)
+    {
+      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, graph_, estimates_, "Error when computing marginals!");
+    }
 
     da::hypothesis::Hypothesis h = da::hypothesis::Hypothesis::empty_hypothesis();
 
@@ -152,7 +147,7 @@ namespace slam
       else
       {
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), L(latest_landmark_key_), meas, meas_noise));
-        initial_estimates_.insert(L(latest_landmark_key_), meas_world);
+        estimates_.insert(L(latest_landmark_key_), meas_world);
         incrementLatestLandmarkKey();
       }
     }
@@ -160,30 +155,36 @@ namespace slam
 #ifdef LOGGING
     std::cout << "Associated " << associated_measurements << " / " << timestep.measurements.size() << " measurements in timestep " << timestep.step << "\n";
 #endif
+    // try
+    // {
+
+    //   update(graph_, initial_estimates_);
+    // }
+    // catch (gtsam::IndeterminantLinearSystemException &indetErr)
+    // {
+    //   throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error when updating with new measurements!");
+    // }
+
+    // Call update extra times to relinearize with new loop closure
+    // if (new_loop_closure)
+    // {
     try
     {
-      update(graph_, initial_estimates_);
+      // for (int i = 0; i < 20; i++)
+      // {
+      //   update();
+      // }
+
+      OptimizerParams params;
+      Optimizer optimizer(graph_, estimates_, params);
+
+      estimates_ = optimizer.optimize();
     }
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
-      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error when updating with new measurements!");
+      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, graph_, estimates_, "Error after adding new measurements!");
     }
-
-    // Call update extra times to relinearize with new loop closure
-    if (new_loop_closure)
-    {
-      try
-      {
-        for (int i = 0; i < 20; i++)
-        {
-          update();
-        }
-      }
-      catch (gtsam::IndeterminantLinearSystemException &indetErr)
-      {
-        throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error running multiple updates because of loop closure!");
-      }
-    }
+    // }
   }
 
   template <class POSE, class POINT>
@@ -191,15 +192,18 @@ namespace slam
   {
     graph_.add(gtsam::BetweenFactor<POSE>(X(latest_pose_key_), X(latest_pose_key_ + 1), odom.odom, odom.noise));
     POSE this_pose = latest_pose_ * odom.odom;
-    initial_estimates_.insert(X(latest_pose_key_ + 1), this_pose);
+    estimates_.insert(X(latest_pose_key_ + 1), this_pose);
     latest_pose_ = this_pose;
+
     try
     {
-      update(graph_, initial_estimates_);
+      OptimizerParams params;
+      Optimizer optimizer(graph_, estimates_, params);
+      estimates_ = optimizer.optimize();
     }
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
-      throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error when adding odom!");
+      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, graph_, estimates_, "Error after adding odom!");
     }
 
     incrementLatestPoseKey();
@@ -223,13 +227,13 @@ namespace slam
     return predicted_measurements;
   }
 
-  template <class POSE, class POINT>
-  void SLAM<POSE, POINT>::update(gtsam::NonlinearFactorGraph &graph, gtsam::Values &initial_estimates)
-  {
-    isam_->update(graph_, initial_estimates_);
+  // template <class POSE, class POINT>
+  // void SLAM<POSE, POINT>::update(gtsam::NonlinearFactorGraph &graph, gtsam::Values &initial_estimates)
+  // {
+  //   isam_->update(graph_, initial_estimates_);
 
-    graph.resize(0);
-    initial_estimates.clear();
-  }
+  //   graph.resize(0);
+  //   initial_estimates.clear();
+  // }
 
 } // namespace slam

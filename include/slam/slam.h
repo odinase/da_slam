@@ -4,6 +4,8 @@
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/LevenbergMarquardtParams.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/geometry/Pose3.h>
@@ -26,9 +28,8 @@ namespace slam
     {
     private:
         gtsam::NonlinearFactorGraph graph_;
-        std::unique_ptr<gtsam::ISAM2> isam_;
+        gtsam::Values estimates_;
 
-        gtsam::Values initial_estimates_;
         gtsam::noiseModel::Diagonal::shared_ptr pose_prior_noise_;
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
 
@@ -48,15 +49,16 @@ namespace slam
     public:
         SLAM();
 
-        inline const gtsam::Values currentEstimates() const { return isam_->calculateEstimate(); }
+        // inline const gtsam::Values currentEstimates() const { return estimates_; }
+        inline const gtsam::Values& currentEstimates() const { return estimates_; }
         void processTimestep(const Timestep<POSE, POINT>& timestep);
         void initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association); //, const gtsam::Vector &lmk_prior_noise);
         gtsam::FastVector<POSE> getTrajectory() const;
         gtsam::FastVector<POINT> getLandmarkPoints() const;
-        inline const gtsam::NonlinearFactorGraph& getGraph() const { return isam_->getFactorsUnsafe(); }
+        inline const gtsam::NonlinearFactorGraph& getGraph() const { return graph_; }
         inline double error() const { return getGraph().error(currentEstimates()); }
-        inline void update() { isam_->update(); }
-        void update(gtsam::NonlinearFactorGraph& graph, gtsam::Values& initial_estimates);
+        // inline void update() { isam_->update(); }
+        // void update(gtsam::NonlinearFactorGraph& graph, gtsam::Values& initial_estimates);
     };
 
     using SLAM3D = SLAM<gtsam::Pose3, gtsam::Point3>;

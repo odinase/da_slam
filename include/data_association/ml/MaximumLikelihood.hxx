@@ -67,7 +67,6 @@ namespace da
       gtsam::KeyVector keys;
       keys.push_back(x_key);
 
-
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;

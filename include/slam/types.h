@@ -25,6 +25,7 @@ struct Odometry {
 template <class POINT>
 struct Measurement {
     POINT measurement;
+    uint64_t idx = 0; // For ground truth
     gtsam::SharedNoiseModel noise;
 };
 
@@ -55,8 +56,20 @@ struct IndeterminantLinearSystemExceptionWithISAM : public gtsam::IndeterminantL
 };
 
 
+struct IndeterminantLinearSystemExceptionWithGraphValues : public gtsam::IndeterminantLinearSystemException {
+    gtsam::NonlinearFactorGraph graph;
+    gtsam::Values values;
+    std::string when;
+    IndeterminantLinearSystemExceptionWithGraphValues(const gtsam::IndeterminantLinearSystemException& err, const gtsam::NonlinearFactorGraph& graph_,
+    const gtsam::Values& values_, const char* when_) noexcept :
+    gtsam::IndeterminantLinearSystemException(err.nearbyVariable()),
+    graph(graph_),
+    values(values_),
+     when(when_)
+      {}
+};
+
+
 } // namespace slam
-
-
 
 #endif // TYPES_H

@@ -354,7 +354,7 @@ std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
     size_t odoms = odomFactors.size();
     uint64_t num_timesteps = odoms + 1; // There will always be one more robot pose than odometry factors since they're all between
     std::vector<slam::Timestep<POSE, POINT>> timesteps;
-    size_t curr_measurement = 0;
+    uint64_t curr_measurement = 0;
     size_t tot_num_measurements = measFactors.size();
     timesteps.reserve(num_timesteps);
     for (uint64_t t = 0; t < num_timesteps; t++)
@@ -376,6 +376,7 @@ std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
         while (curr_measurement < tot_num_measurements && gtsam::symbolIndex(measFactors[curr_measurement]->key1()) == t)
         {
             slam::Measurement<POINT> meas;
+            meas.idx = curr_measurement;
             meas.measurement = measFactors[curr_measurement]->measured();
             meas.noise = measFactors[curr_measurement]->noiseModel();
             timestep.measurements.push_back(meas);
@@ -387,3 +388,18 @@ std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
 
     return timesteps;
 }
+
+template<class POSE, class POINT>
+std::map<uint64_t, gtsam::Key> measurement_landmarks_associations(
+    const std::vector<boost::shared_ptr<gtsam::PoseToPointFactor<POSE, POINT>>> &measFactors,
+    const std::vector<slam::Timestep<POSE, POINT>>& timesteps) {
+    std::map<uint64_t, gtsam::Key> meas_lmk_assos;
+    for (const auto& timestep : timesteps) {
+        for (const auto measurement : timestep.measurements) {
+            meas_lmk_assos[measurement.idx] = measFactors[measurement.idx]->key2();
+        }
+    }
+
+    return meas_lmk_assos;
+}
+

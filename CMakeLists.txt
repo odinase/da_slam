@@ -10,6 +10,7 @@ set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL 3 REQUIRED)
 
 find_package(GTSAM REQUIRED) # Uses installed package
+find_package(OpenCV 3 REQUIRED)
 
 find_package(Eigen3 REQUIRED)
 # set(EIGEN3_INCLUDE_DIR "/usr/local/include/gtsam/3rdparty/Eigen")
@@ -131,6 +132,15 @@ target_link_libraries(data_association
   Eigen3::Eigen
 )
 
+
+add_library(config
+  src/config.cpp
+)
+
+target_link_libraries(config
+  ${OpenCV_LIBS}
+)
+
 add_executable(slam_g2o_file
   src/slam/slam_g2o_file.cpp
 )
@@ -143,6 +153,7 @@ target_link_libraries(slam_g2o_file
   glog::glog
   data_association
   visualization
+  config
 )
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
@@ -194,3 +205,20 @@ target_link_libraries(test_association_visualization
 )
 
 set_target_properties(test_association_visualization PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
+
+
+add_executable(test_read_ground_truth_assos
+  tests/test_read_ground_truth_assos.cpp
+)
+
+target_link_libraries(test_read_ground_truth_assos
+  Eigen3::Eigen
+  gtsam
+  gtsam_unstable
+  glog::glog
+  data_association
+  hypothesis
+  visualization
+)
+
+set_target_properties(test_read_ground_truth_assos PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )

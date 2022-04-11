@@ -1,0 +1,8 @@
+%YAML:1.1
+---
+# OpenCV is retarded, so we must use ints for bools
+enable_stepping: 1 # false
+draw_factor_graph: 1 # true
+enable_step_limit: 0 # false
+step_to_increment_to: 0
+autofit: 1 # true

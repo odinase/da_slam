@@ -17,8 +17,11 @@
 #include "slam/slam.h"
 #include "slam/types.h"
 #include "data_association/ml/MaximumLikelihood.h"
+#include "data_association/gt/KnownDataAssociation.h"
 #include "data_association/DataAssociation.h"
 #include "visualization/visualization.h"
+#include "config/config.h"
+
 
 using namespace std;
 using namespace gtsam;
@@ -27,6 +30,8 @@ using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;
 
 namespace viz = visualization;
+
+
 
 std::optional<std::pair<gtsam::Key, gtsam::Key>> nonlinearFactor2keys(const gtsam::NonlinearFactor::shared_ptr &factor)
 {
@@ -182,11 +187,14 @@ int main(int argc, char **argv)
 
     bool early_stop = false;
     bool next_timestep = true;
-    bool enable_stepping = false;
-    bool draw_factor_graph = true;
-    bool enable_step_limit = false;
-    int step_to_increment_to = 0;
-    bool autofit = true;
+    
+    config::Config conf("/home/mrg/prog/C++/da-slam/config/config.yaml");
+
+    bool enable_stepping = conf.enable_stepping;
+    bool draw_factor_graph = conf.draw_factor_graph;
+    bool enable_step_limit = conf.enable_step_limit;
+    int step_to_increment_to = conf.step_to_increment_to;
+    bool autofit = conf.autofit;
 
     try
     {
@@ -197,7 +205,11 @@ int main(int argc, char **argv)
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::SLAM3D slam_sys{};
-            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
+            // std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
+            std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
+                measFactors3d,
+                timesteps);
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::gt::KnownDataAssociation3D>(meas_lmk_assos);
             slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
 
@@ -391,16 +403,16 @@ int main(int argc, char **argv)
             os.close();
         }
     }
-    catch (slam::IndeterminantLinearSystemExceptionWithISAM &indetErr)
+    catch (slam::IndeterminantLinearSystemExceptionWithGraphValues &indetErr)
     { // when run in terminal: tbb::captured_exception
         std::cout << "Optimization failed" << std::endl;
         std::cout << indetErr.what() << std::endl;
         std::cout << "Error occured when:\n"
                   << indetErr.when << "\n";
 
-        const gtsam::NonlinearFactorGraph &graph = indetErr.isam->getFactorsUnsafe();
+        const gtsam::NonlinearFactorGraph &graph = indetErr.graph;
         // graph.print("Graph");
-        const gtsam::Values &values = indetErr.isam->calculateEstimate();
+        const gtsam::Values &values = indetErr.values;
         // values.print("\nValues");
 
         // const gtsam::Values &lin_point = indetErr.isam->getLinearizationPoint();
@@ -436,7 +448,7 @@ int main(int argc, char **argv)
         // graph.saveGraph(cout);
 
         // bool draw_problem_var = false;
-        bool autofit = true;
+        bool autofit_plot_toggle = true;
 
         while (viz::running())
         {
@@ -445,10 +457,10 @@ int main(int argc, char **argv)
             // ImGui::Checkbox("Indicate variable that caused error", &draw_problem_var);
             // ImGui::End();
             ImGui::Begin("Config");
-            ImGui::Checkbox("Autofit plot", &autofit);
+            ImGui::Checkbox("Autofit plot toggle", &autofit_plot_toggle);
             ImGui::End();
             ImGui::Begin("Factor graph");
-            if (autofit)
+            if (autofit_plot_toggle)
             {
                 ImPlot::SetNextAxesToFit();
             }
@@ -456,42 +468,43 @@ int main(int argc, char **argv)
             {
                 viz::draw_factor_graph(graph, values);
 
-                // if (draw_problem_var)
-                // {
-                gtsam::Point2 p;
-                if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'l')
+                
+
+            gtsam::Point2 p;
+            if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'l')
+            {
+                if (is3D)
                 {
-                    if (is3D)
-                    {
-                        const auto &l = values.at<gtsam::Point3>(indetErr.nearbyVariable());
-                        p << l.x(), l.y();
-                    }
-                    else
-                    {
-                        p = values.at<gtsam::Point2>(indetErr.nearbyVariable());
-                    }
+                    const auto &l = values.at<gtsam::Point3>(indetErr.nearbyVariable());
+                    p << l.x(), l.y();
                 }
-                else if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'x')
+                else
                 {
-                    if (is3D)
-                    {
-                        const auto &x = values.at<gtsam::Pose3>(indetErr.nearbyVariable());
-                        p << x.x(), x.y();
-                    }
-                    else
-                    {
-                        p = values.at<gtsam::Pose2>(indetErr.nearbyVariable()).translation();
-                    }
+                    p = values.at<gtsam::Point2>(indetErr.nearbyVariable());
                 }
-                viz::draw_circle(p);
-                ImGui::Begin("Debugging");
-                ImGui::Text("Problem variable: %s at\n[%f, %f]", gtsam::Symbol(indetErr.nearbyVariable()).string().c_str(), p(0), p(1));
-                ImGui::End();
-                // }
+            }
+            else if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'x')
+            {
+                if (is3D)
+                {
+                    const auto &x = values.at<gtsam::Pose3>(indetErr.nearbyVariable());
+                    p << x.x(), x.y();
+                }
+                else
+                {
+                    p = values.at<gtsam::Pose2>(indetErr.nearbyVariable()).translation();
+                }
+            }
+            viz::draw_circle(p);
+            ImGui::Begin("Debugging");
+            ImGui::Text("Problem variable: %s at\n[%f, %f]", gtsam::Symbol(indetErr.nearbyVariable()).string().c_str(), p(0), p(1));
+            ImGui::TextWrapped("When did failure occur: %s", indetErr.when.c_str());
+            ImGui::End();
 
                 ImPlot::EndPlot();
             }
             ImGui::End();
+
             viz::render();
         }
 
