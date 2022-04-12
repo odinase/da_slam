@@ -20,6 +20,15 @@
 
 namespace da
 {
+  enum class AssociationMethod : int {
+    MaximumLikelihood = 0,
+    KnownDataAssociation = 1,
+  };
+}
+
+std::ostream& operator<<(std::ostream& os, const da::AssociationMethod& asso_method);
+
+namespace da {
 
   template <class MEASUREMENT>
   class DataAssociation
@@ -30,13 +39,6 @@ namespace da
         const gtsam::Marginals &marginals,
         const gtsam::FastVector<MEASUREMENT> &measurements) = 0;
     virtual ~DataAssociation() {}
-  };
-
-  enum class AssociationMethod
-  {
-    JCBB,
-    ML,
-    KnownDataAssociation
   };
 
   template <class MEASUREMENT>

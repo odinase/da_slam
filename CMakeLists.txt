@@ -57,7 +57,7 @@ else()
   message("LOGGING = OFF")  
 endif()
 
-option(HEARTBEAT "Print periodically how far the SLAM system has come through the dataset" ON)
+option(HEARTBEAT "Print periodically how far the SLAM system has come through the dataset" OFF)
 
 if (HEARTBEAT)
   add_definitions(-DHEARTBEAT)

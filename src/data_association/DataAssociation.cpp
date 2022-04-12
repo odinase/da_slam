@@ -4,6 +4,23 @@
 
 // Basically all Hungarian algorithm code was taken from https://github.com/mcximing/hungarian-algorithm-cpp
 
+
+std::ostream& operator<<(std::ostream& os, const da::AssociationMethod& asso_method) {
+  switch (asso_method) {
+    case da::AssociationMethod::MaximumLikelihood: {
+      os << "MaximumLikelihood";
+      break;
+    }
+    case da::AssociationMethod::KnownDataAssociation: {
+      os << "KnownDataAssociation";
+      break;
+    }
+  }
+
+  return os;
+}
+
+
 namespace da {
 
   double chi2inv(double p, unsigned int dim)

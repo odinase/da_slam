@@ -102,26 +102,26 @@ namespace slam
 
     da::hypothesis::Hypothesis h = da::hypothesis::Hypothesis::empty_hypothesis();
 
-    // We have landmarks to associate
-    if (latest_landmark_key_ > 0)
-    {
+//     // We have landmarks to associate
+//     if (latest_landmark_key_ > 0)
+//     {
 
-#ifdef LOGGING
-      std::cout << "We have landmarks to check, so run association.\n";
-#endif
+// #ifdef LOGGING
+//       std::cout << "We have landmarks to check, so run association.\n";
+// #endif
 
       h = data_association_->associate(estimates, marginals, timestep.measurements);
-    }
-    // No landmarks, so no measurements can be associated
-    else
-    {
+//     }
+//     // No landmarks, so no measurements can be associated
+//     else
+//     {
 
-#ifdef LOGGING
-      std::cout << "No associations yet, so construct unassociated hypothesis.\n";
-#endif
+// #ifdef LOGGING
+//       std::cout << "No associations yet, so construct unassociated hypothesis.\n";
+// #endif
 
-      h.fill_with_unassociated_measurements(timestep.measurements.size());
-    }
+//       h.fill_with_unassociated_measurements(timestep.measurements.size());
+//     }
 
     const auto &assos = h.associations();
 
@@ -135,17 +135,24 @@ namespace slam
     for (int i = 0; i < assos.size(); i++)
     {
       da::hypothesis::Association::shared_ptr a = assos[i];
+      uint64_t meas_idx = timestep.measurements[a->measurement].idx; 
       POINT meas = timestep.measurements[a->measurement].measurement;
       const auto &meas_noise = timestep.measurements[a->measurement].noise;
       POINT meas_world = T_wb * meas;
       if (a->associated())
       {
+#ifdef LOGGING
+        std::cout << "Measurement z" << a->measurement << " associated with landmark " << gtsam::Symbol(*a->landmark) << "\n";
+#endif
         new_loop_closure = true;
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), *a->landmark, meas, meas_noise));
         associated_measurements++;
       }
       else
       {
+#ifdef LOGGING
+        std::cout << "Measurement z" << a->measurement << " unassociated, initialize landmark l" << latest_landmark_key_ << "\n";
+#endif
         graph_.add(gtsam::PoseToPointFactor<POSE, POINT>(X(latest_pose_key_), L(latest_landmark_key_), meas, meas_noise));
         estimates_.insert(L(latest_landmark_key_), meas_world);
         incrementLatestLandmarkKey();

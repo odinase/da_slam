@@ -200,16 +200,28 @@ int main(int argc, char **argv)
     {
         if (is3D)
         {
-            double sigmas = sqrt(da::chi2inv(ic_prob, 3));
             gtsam::Vector pose_prior_noise = (gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished();
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::SLAM3D slam_sys{};
-            // std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
-            std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
-                measFactors3d,
-                timesteps);
-            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::gt::KnownDataAssociation3D>(meas_lmk_assos);
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso;
+            switch (conf.association_method) {
+                case da::AssociationMethod::MaximumLikelihood: {
+                    double sigmas = sqrt(da::chi2inv(ic_prob, 3));
+                    data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
+                    break;
+                }
+                case da::AssociationMethod::KnownDataAssociation: {
+                    std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
+                        measFactors3d,
+                        timesteps);
+                    data_asso = std::make_shared<da::gt::KnownDataAssociation3D>(meas_lmk_assos);
+                    break;
+                }
+            }
+
+            std::cout << "Using association method "  << conf.association_method << "\n";
+
             slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
 
@@ -308,7 +320,25 @@ int main(int argc, char **argv)
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
             slam::SLAM2D slam_sys{};
-            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
+
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso;
+            switch (conf.association_method) {
+                case da::AssociationMethod::MaximumLikelihood: {
+                    double sigmas = sqrt(da::chi2inv(ic_prob, 2));
+                    data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
+                    break;
+                }
+                case da::AssociationMethod::KnownDataAssociation: {
+                    std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
+                        measFactors2d,
+                        timesteps);
+                        data_asso = std::make_shared<da::gt::KnownDataAssociation2D>(meas_lmk_assos);
+                    break;
+                }
+            }
+
+            std::cout << "Using association method "  << conf.association_method << "\n";
+
             slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
 

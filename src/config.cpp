@@ -2,6 +2,33 @@
 #include <opencv2/core.hpp>
 #include <iostream>
 
+// Stolen from https://stackoverflow.com/questions/62303440/opencv-yaml-parser-does-not-recognize-true-false-values
+namespace cv
+{
+    // Define a new bool reader in order to accept "true/false"-like values.
+    void read_bool(const cv::FileNode &node, bool &value, const bool &default_value)
+    {
+        std::string s(static_cast<std::string>(node));
+        if (s == "y" || s == "Y" || s == "yes" || s == "Yes" || s == "YES" || s == "true" || s == "True" || s == "TRUE" || s == "on" || s == "On" || s == "ON")
+        {
+            value = true;
+            return;
+        }
+        if (s == "n" || s == "N" || s == "no" || s == "No" || s == "NO" || s == "false" || s == "False" || s == "FALSE" || s == "off" || s == "Off" || s == "OFF")
+        {
+            value = false;
+            return;
+        }
+        value = static_cast<int>(node);
+    }
+    // Specialize cv::operator>> for bool.
+    template <>
+    inline void operator>>(const cv::FileNode &n, bool &value)
+    {
+        read_bool(n, value, false);
+    }
+} // cv
+
 namespace config
 {
     Config::Config(const char *filename)
@@ -14,12 +41,20 @@ namespace config
         yaml["step_to_increment_to"] >> step_to_increment_to;
         yaml["autofit"] >> autofit;
 
-        std::cout << "Using config\n";
-        std::cout << "enable_stepping: " << enable_stepping << "\n";
-        std::cout << "draw_factor_graph: " << draw_factor_graph << "\n";
-        std::cout << "enable_step_limit: " << enable_step_limit << "\n";
-        std::cout << "step_to_increment_to: " << step_to_increment_to << "\n";
-        std::cout << "autofit: " << autofit << "\n";
+        int asso_method;
+        yaml["association_method"] >> asso_method;
+        switch (asso_method) {
+            case 0:
+            case 1: {
+                association_method = static_cast<da::AssociationMethod>(asso_method);
+                break;
+            }
+            default: {
+                std::cout << "Unknown vaule passed in, got " << asso_method << ", using ML\n";
+                association_method = da::AssociationMethod::MaximumLikelihood;
+                break;                
+            }
+        }
     }
 
 } // namespace config

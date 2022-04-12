@@ -51,9 +51,9 @@ namespace da
       hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
 
       /*
-      Look through all measurements, and find landmark they should be associated with.
-      If this landmark key does not exist in the mapping between ground truth map and our map, leave measurement unassociated.
-      Otherwise, associate.
+      * Look through all measurements, and find landmark they should be associated with.
+      * If this landmark key does not exist in the mapping between ground truth map and our map, leave measurement unassociated.
+      * Otherwise, associate.
       */
 
       gtsam::Matrix Hx, Hl;
@@ -80,7 +80,7 @@ namespace da
         }
         // We have not seen this landmark before - add to mapping 
         else {
-          // TODO: Not sure if keeping track of landmark cout internally is a good way of doing this, but ohwell
+          // TODO: Not sure if keeping track of landmark count internally is a good way of doing this, but ohwell
           gt_lmk2map_lmk_[lmk_gt] = L(curr_landmark_count_);
           curr_landmark_count_++;
           Association::shared_ptr a = std::make_shared<Association>(meas_idx);
