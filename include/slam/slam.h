@@ -34,6 +34,7 @@ namespace slam
         gtsam::noiseModel::Diagonal::shared_ptr lmk_prior_noise_;
 
         std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association_;
+        da::hypothesis::Hypothesis::shared_ptr latest_hypothesis_;
 
         unsigned long int latest_pose_key_;
         POSE latest_pose_;

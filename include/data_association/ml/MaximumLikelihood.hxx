@@ -262,6 +262,18 @@ namespace da
       // Regardless of if no or only some measurements were made, fill hypothesis with remaining unassociated measurements and return
       h.fill_with_unassociated_measurements(num_measurements);
 
+
+      std::cout << "\n\nMaximum likelihood made associations:\n";
+      for (const auto& asso : h.associations()) {
+        if (asso->associated()) {
+        std::cout << "Measurement z" << measurements[asso->measurement].idx << " associated with landmark " << gtsam::Symbol(*asso->landmark) << "\n";
+        } else {
+          std::cout << "Measurement z" << measurements[asso->measurement].idx << " unassociated\n";
+        }
+      }
+      std::cout << "\n";
+
+
 #ifdef HYPOTHESIS_QUALITY
       std::cout << "Computing joint NIS\n";
       double nis = joint_compatability<POSE::dimension, POINT::RowsAtCompileTime, POINT::RowsAtCompileTime>(h, x_key, marginals, measurements);

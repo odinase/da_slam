@@ -34,6 +34,29 @@ namespace da
             bool associated() const { return bool(landmark); }
             // double nis(const Eigen::VectorXd &z, const Eigen::VectorXd &zbar, const Marginals &S);
             gtsam::Vector error;
+
+            bool operator<(const Association &rhs) const {
+                return measurement < rhs.measurement;
+            }
+
+            bool operator>(const Association &rhs) const {
+                return measurement > rhs.measurement;
+            }
+
+            bool operator==(const Association &rhs) const {
+                bool same_measurement = measurement == rhs.measurement;
+                bool both_unassociated = !associated() && !rhs.associated();
+                bool both_associated = associated() && rhs.associated();
+                return same_measurement && (both_unassociated || both_associated);
+            }
+
+            bool operator<=(const Association &rhs) const {
+                return (*this) < rhs || (*this) == rhs;
+            }
+
+            bool operator>=(const Association &rhs) const {
+                return (*this) > rhs || (*this) == rhs;
+            }
         };
 
         class Hypothesis
@@ -43,6 +66,9 @@ namespace da
             gtsam::FastVector<Association::shared_ptr> assos_;
 
         public:
+
+            typedef std::shared_ptr<Hypothesis> shared_ptr;
+
             Hypothesis(const gtsam::FastVector<Association::shared_ptr> &associations, double nis) : assos_(associations), nis_(nis) {}
             int num_associations() const;
             int num_measurements() const;

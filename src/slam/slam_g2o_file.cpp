@@ -22,7 +22,6 @@
 #include "visualization/visualization.h"
 #include "config/config.h"
 
-
 using namespace std;
 using namespace gtsam;
 
@@ -30,8 +29,6 @@ using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;
 
 namespace viz = visualization;
-
-
 
 std::optional<std::pair<gtsam::Key, gtsam::Key>> nonlinearFactor2keys(const gtsam::NonlinearFactor::shared_ptr &factor)
 {
@@ -187,7 +184,7 @@ int main(int argc, char **argv)
 
     bool early_stop = false;
     bool next_timestep = true;
-    
+
     config::Config conf("/home/mrg/prog/C++/da-slam/config/config.yaml");
 
     bool enable_stepping = conf.enable_stepping;
@@ -195,6 +192,10 @@ int main(int argc, char **argv)
     bool enable_step_limit = conf.enable_step_limit;
     int step_to_increment_to = conf.step_to_increment_to;
     bool autofit = conf.autofit;
+
+    bool draw_factor_graph_ground_truth = conf.draw_factor_graph_ground_truth;
+    bool enable_factor_graph_window = conf.enable_factor_graph_window;
+    int factor_graph_window = enable_factor_graph_window ? conf.factor_graph_window : 0;
 
     try
     {
@@ -204,28 +205,35 @@ int main(int argc, char **argv)
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::SLAM3D slam_sys{};
-            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso;
-            switch (conf.association_method) {
-                case da::AssociationMethod::MaximumLikelihood: {
-                    double sigmas = sqrt(da::chi2inv(ic_prob, 3));
-                    data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
-                    break;
-                }
-                case da::AssociationMethod::KnownDataAssociation: {
-                    std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
-                        measFactors3d,
-                        timesteps);
-                    data_asso = std::make_shared<da::gt::KnownDataAssociation3D>(meas_lmk_assos);
-                    break;
-                }
-            }
 
-            std::cout << "Using association method "  << conf.association_method << "\n";
+            slam::SLAM3D slam_sys_gt{};
+
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso;
+            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso_gt;
+
+            // switch (conf.association_method) {
+            //     case da::AssociationMethod::MaximumLikelihood: {
+            double sigmas = sqrt(da::chi2inv(ic_prob, 3));
+            data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
+            //     break;
+            // }
+            // case da::AssociationMethod::KnownDataAssociation: {
+            std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
+                measFactors3d,
+                timesteps);
+            data_asso_gt = std::make_shared<da::gt::KnownDataAssociation3D>(meas_lmk_assos);
+            //         break;
+            //     }
+            // }
+
+            std::cout << "Using association method " << conf.association_method << "\n";
 
             slam_sys.initialize(pose_prior_noise, data_asso);
+            slam_sys_gt.initialize(pose_prior_noise, data_asso_gt);
+
             int tot_timesteps = timesteps.size();
 
-            size_t i = 0;
+            int i = 0;
             int step = timesteps[i].step;
             while (viz::running() && i < tot_timesteps)
             {
@@ -257,16 +265,47 @@ int main(int argc, char **argv)
                 }
 
                 ImGui::Checkbox("Draw factor graph", &draw_factor_graph);
+                ImGui::Checkbox("Draw factor graph ground truth", &draw_factor_graph_ground_truth);
+                if (draw_factor_graph || draw_factor_graph_ground_truth)
+                {
+                    ImGui::Checkbox("Enable factor graph window", &enable_factor_graph_window);
+                    if (enable_factor_graph_window)
+                    {
+                        ImGui::SetNextItemWidth(150.0f);
+                        ImGui::InputInt("\0", &factor_graph_window);
+                        ImGui::SameLine();
+                        ImGui::TextWrapped("Factor graph window (how many latest timesteps to draw)");
+                    }
+                }
                 ImGui::Checkbox("Autofit plot", &autofit);
                 ImGui::End(); // Menu
 
                 if (next_timestep && step < step_to_increment_to)
                 {
+                    cout << "---------------------------------------------\n";
+                    cout << "---------------------------------------------\n";
+                    cout << "--- TIMESTEP " << i << " ---\n";
                     const slam::Timestep3D &timestep = timesteps[i];
+
+                    if (timestep.measurements.size() > 0)
+                    {
+                        std::cout << "Measurement idxs in timestep " << i << ":\n";
+                        for (const auto &m : timestep.measurements)
+                        {
+                            std::cout << "z" << m.idx << "\n";
+                        }
+                    }
+                    else
+                    {
+                        std::cout << "No measurements in timestep " << i << "\n";
+                    }
                     step = timestep.step;
 
                     start_t = std::chrono::high_resolution_clock::now();
+
                     slam_sys.processTimestep(timestep);
+                    slam_sys_gt.processTimestep(timestep);
+
                     end_t = std::chrono::high_resolution_clock::now();
                     double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
 #ifdef LOGGING
@@ -285,10 +324,22 @@ int main(int argc, char **argv)
                         next_timestep = false;
                     }
                     i++;
+                    cout << "----------------------------------\n";
+                    cout << "----------------------------------\n";
+                    cout << "----------------------------------\n";
                 }
 
-                if (draw_factor_graph)
+                if (draw_factor_graph || draw_factor_graph_ground_truth)
                 {
+                    int latest_timestep_to_draw;
+                    if (enable_factor_graph_window)
+                    {
+                        latest_timestep_to_draw = i - factor_graph_window;
+                    }
+                    else
+                    {
+                        latest_timestep_to_draw = 0;
+                    }
                     ImGui::Begin("Factor graph");
                     if (autofit)
                     {
@@ -296,8 +347,14 @@ int main(int argc, char **argv)
                     }
                     if (ImPlot::BeginPlot("##factor graph", ImVec2(-1, -1)))
                     {
-                        nlf_graph = slam_sys.getGraph();
-                        viz::draw_factor_graph(nlf_graph, estimates);
+                        if (draw_factor_graph)
+                        {
+                            viz::draw_factor_graph(slam_sys.getGraph(), slam_sys.currentEstimates(), latest_timestep_to_draw);
+                        }
+                        if (draw_factor_graph_ground_truth)
+                        {
+                            viz::draw_factor_graph_ground_truth(slam_sys_gt.getGraph(), slam_sys_gt.currentEstimates(), latest_timestep_to_draw);
+                        }
                         ImPlot::EndPlot();
                     }
                     ImGui::End(); // Factor graph
@@ -322,22 +379,25 @@ int main(int argc, char **argv)
             slam::SLAM2D slam_sys{};
 
             std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso;
-            switch (conf.association_method) {
-                case da::AssociationMethod::MaximumLikelihood: {
-                    double sigmas = sqrt(da::chi2inv(ic_prob, 2));
-                    data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
-                    break;
-                }
-                case da::AssociationMethod::KnownDataAssociation: {
-                    std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
-                        measFactors2d,
-                        timesteps);
-                        data_asso = std::make_shared<da::gt::KnownDataAssociation2D>(meas_lmk_assos);
-                    break;
-                }
+            switch (conf.association_method)
+            {
+            case da::AssociationMethod::MaximumLikelihood:
+            {
+                double sigmas = sqrt(da::chi2inv(ic_prob, 2));
+                data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
+                break;
+            }
+            case da::AssociationMethod::KnownDataAssociation:
+            {
+                std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
+                    measFactors2d,
+                    timesteps);
+                data_asso = std::make_shared<da::gt::KnownDataAssociation2D>(meas_lmk_assos);
+                break;
+            }
             }
 
-            std::cout << "Using association method "  << conf.association_method << "\n";
+            std::cout << "Using association method " << conf.association_method << "\n";
 
             slam_sys.initialize(pose_prior_noise, data_asso);
             int tot_timesteps = timesteps.size();
@@ -498,38 +558,36 @@ int main(int argc, char **argv)
             {
                 viz::draw_factor_graph(graph, values);
 
-                
-
-            gtsam::Point2 p;
-            if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'l')
-            {
-                if (is3D)
+                gtsam::Point2 p;
+                if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'l')
                 {
-                    const auto &l = values.at<gtsam::Point3>(indetErr.nearbyVariable());
-                    p << l.x(), l.y();
+                    if (is3D)
+                    {
+                        const auto &l = values.at<gtsam::Point3>(indetErr.nearbyVariable());
+                        p << l.x(), l.y();
+                    }
+                    else
+                    {
+                        p = values.at<gtsam::Point2>(indetErr.nearbyVariable());
+                    }
                 }
-                else
+                else if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'x')
                 {
-                    p = values.at<gtsam::Point2>(indetErr.nearbyVariable());
+                    if (is3D)
+                    {
+                        const auto &x = values.at<gtsam::Pose3>(indetErr.nearbyVariable());
+                        p << x.x(), x.y();
+                    }
+                    else
+                    {
+                        p = values.at<gtsam::Pose2>(indetErr.nearbyVariable()).translation();
+                    }
                 }
-            }
-            else if (gtsam::symbolChr(indetErr.nearbyVariable()) == 'x')
-            {
-                if (is3D)
-                {
-                    const auto &x = values.at<gtsam::Pose3>(indetErr.nearbyVariable());
-                    p << x.x(), x.y();
-                }
-                else
-                {
-                    p = values.at<gtsam::Pose2>(indetErr.nearbyVariable()).translation();
-                }
-            }
-            viz::draw_circle(p);
-            ImGui::Begin("Debugging");
-            ImGui::Text("Problem variable: %s at\n[%f, %f]", gtsam::Symbol(indetErr.nearbyVariable()).string().c_str(), p(0), p(1));
-            ImGui::TextWrapped("When did failure occur: %s", indetErr.when.c_str());
-            ImGui::End();
+                viz::draw_circle(p);
+                ImGui::Begin("Debugging");
+                ImGui::Text("Problem variable: %s at\n[%f, %f]", gtsam::Symbol(indetErr.nearbyVariable()).string().c_str(), p(0), p(1));
+                ImGui::TextWrapped("When did failure occur: %s", indetErr.when.c_str());
+                ImGui::End();
 
                 ImPlot::EndPlot();
             }

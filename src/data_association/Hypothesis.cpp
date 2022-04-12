@@ -134,7 +134,7 @@ namespace hypothesis
         {
             assos_.push_back(std::make_shared<Association>(vv));
         }
-        std::sort(assos_.begin(), assos_.end());
+        std::sort(assos_.begin(), assos_.end(), [](const auto& lhs, const auto& rhs) {return (*lhs) < (*rhs);});
     }
 
 } // namespace hypothesis

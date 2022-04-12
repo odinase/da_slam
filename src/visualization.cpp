@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <exception>
+#include <cmath>
 
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
@@ -219,8 +220,10 @@ namespace visualization
         glfwTerminate();
     }
 
-    void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates)
+    void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates, int latest_time_step)
     {
+        latest_time_step = std::max(latest_time_step, 0);
+
         gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>::shared_ptr meas2d;
         gtsam::BetweenFactor<gtsam::Pose2>::shared_ptr odom2d;
 
@@ -235,6 +238,7 @@ namespace visualization
         double line[4];
         double xp, yp;
         gtsam::KeySet value_keys;
+        gtsam::KeySet lmks_to_draw;
 
         // Draw just factors and add keys that have an associated factor
         for (const auto &factor_ : graph)
@@ -247,7 +251,11 @@ namespace visualization
             if (meas2d)
             {
                 gtsam::Key x_key = meas2d->key1();
+                if (gtsam::symbolIndex(x_key) < latest_time_step) {
+                    continue;
+                }
                 gtsam::Key lmk_key = meas2d->key2();
+                lmks_to_draw.insert(lmk_key);
 
                 value_keys.insert(x_key);
                 value_keys.insert(lmk_key);
@@ -266,7 +274,11 @@ namespace visualization
             if (odom2d)
             {
                 gtsam::Key x_from_key = odom2d->key1();
+                if (gtsam::symbolIndex(x_from_key) < latest_time_step) {
+                    continue;
+                }
                 gtsam::Key x_to_key = odom2d->key2();
+
                 gtsam::Pose2 x_from = estimates.at<gtsam::Pose2>(x_from_key);
                 gtsam::Pose2 x_to = estimates.at<gtsam::Pose2>(x_to_key);
 
@@ -284,7 +296,11 @@ namespace visualization
             if (meas3d)
             {
                 gtsam::Key x_key = meas3d->key1();
+                if (gtsam::symbolIndex(x_key) < latest_time_step) {
+                    continue;
+                }
                 gtsam::Key lmk_key = meas3d->key2();
+                lmks_to_draw.insert(lmk_key);
 
                 value_keys.insert(x_key);
                 value_keys.insert(lmk_key);
@@ -303,6 +319,9 @@ namespace visualization
             if (odom3d)
             {
                 gtsam::Key x_from_key = odom3d->key1();
+                if (gtsam::symbolIndex(x_from_key) < latest_time_step) {
+                    continue;
+                }
                 gtsam::Key x_to_key = odom3d->key2();
 
                 gtsam::Pose3 x_from = estimates.at<gtsam::Pose3>(x_from_key);
@@ -329,6 +348,9 @@ namespace visualization
             {
                 chr = 'x';
                 idx = gtsam::symbolIndex(p.key);
+                if (idx < latest_time_step) {
+                    continue;
+                }
                 try
                 {
                     gtsam::Pose2 x = p.value.cast<gtsam::Pose2>();
@@ -343,12 +365,14 @@ namespace visualization
                 }
                 legend = "Poses";
                 ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
-                ImPlot::PlotScatter("Poses", &xp, &yp, 1);
             }
             else if (gtsam::symbolChr(p.key) == 'l')
             {
                 chr = 'l';
                 idx = gtsam::symbolIndex(p.key);
+                if (!lmks_to_draw.exists(p.key)) {
+                    continue;
+                }
                 try
                 {
                     gtsam::Point2 l = p.value.cast<gtsam::Point2>();
@@ -383,6 +407,200 @@ namespace visualization
         }
 
     }
+
+
+    void draw_factor_graph_ground_truth(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates, int latest_time_step)
+    {
+        latest_time_step = std::max(latest_time_step, 0);
+
+        gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>::shared_ptr meas2d;
+        gtsam::BetweenFactor<gtsam::Pose2>::shared_ptr odom2d;
+
+        gtsam::PoseToPointFactor<gtsam::Pose3, gtsam::Point3>::shared_ptr meas3d;
+        gtsam::BetweenFactor<gtsam::Pose3>::shared_ptr odom3d;
+
+        std::stringstream ss;
+        std::string legend;
+
+        // Add all values first
+
+        double line[4];
+        double xp, yp;
+        gtsam::KeySet value_keys;
+        gtsam::KeySet lmks_to_draw;
+
+        // Draw just factors and add keys that have an associated factor
+        for (const auto &factor_ : graph)
+        {
+            meas2d = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose2, gtsam::Point2>>(factor_);
+            odom2d = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose2>>(factor_);
+            meas3d = boost::dynamic_pointer_cast<gtsam::PoseToPointFactor<gtsam::Pose3, gtsam::Point3>>(factor_);
+            odom3d = boost::dynamic_pointer_cast<gtsam::BetweenFactor<gtsam::Pose3>>(factor_);
+
+            if (meas2d)
+            {
+                gtsam::Key x_key = meas2d->key1();
+                if (gtsam::symbolIndex(x_key) < latest_time_step) {
+                    continue;
+                }
+                gtsam::Key lmk_key = meas2d->key2();
+                lmks_to_draw.insert(lmk_key);
+
+                value_keys.insert(x_key);
+                value_keys.insert(lmk_key);
+
+                gtsam::Pose2 x = estimates.at<gtsam::Pose2>(x_key);
+                gtsam::Point2 l = estimates.at<gtsam::Point2>(lmk_key);
+
+                line[0] = x.x();
+                line[1] = l.x();
+
+                line[2] = x.y();
+                line[3] = l.y();
+
+                ImPlot::PlotLine("Measurement Ground Truth", line, line + 2, 2);
+            }
+            if (odom2d)
+            {
+                gtsam::Key x_from_key = odom2d->key1();
+                if (gtsam::symbolIndex(x_from_key) < latest_time_step) {
+                    continue;
+                }
+                gtsam::Key x_to_key = odom2d->key2();
+
+                gtsam::Pose2 x_from = estimates.at<gtsam::Pose2>(x_from_key);
+                gtsam::Pose2 x_to = estimates.at<gtsam::Pose2>(x_to_key);
+
+                value_keys.insert(x_from_key);
+                value_keys.insert(x_to_key);
+
+                line[0] = x_from.x();
+                line[1] = x_to.x();
+
+                line[2] = x_from.y();
+                line[3] = x_to.y();
+
+                ImPlot::PlotLine("Odometry Ground Truth", line, line + 2, 2);
+            }
+            if (meas3d)
+            {
+                gtsam::Key x_key = meas3d->key1();
+                if (gtsam::symbolIndex(x_key) < latest_time_step) {
+                    continue;
+                }
+                gtsam::Key lmk_key = meas3d->key2();
+                lmks_to_draw.insert(lmk_key);
+
+                value_keys.insert(x_key);
+                value_keys.insert(lmk_key);
+
+                gtsam::Pose3 x = estimates.at<gtsam::Pose3>(x_key);
+                gtsam::Point3 l = estimates.at<gtsam::Point3>(lmk_key);
+
+                line[0] = x.x();
+                line[1] = l.x();
+
+                line[2] = x.y();
+                line[3] = l.y();
+
+                ImPlot::SetNextLineStyle(colors::MAGENTA);
+                ImPlot::PlotLine("Measurement Ground Truth", line, line + 2, 2);
+            }
+            if (odom3d)
+            {
+                gtsam::Key x_from_key = odom3d->key1();
+                if (gtsam::symbolIndex(x_from_key) < latest_time_step) {
+                    continue;
+                }
+                gtsam::Key x_to_key = odom3d->key2();
+
+                gtsam::Pose3 x_from = estimates.at<gtsam::Pose3>(x_from_key);
+                gtsam::Pose3 x_to = estimates.at<gtsam::Pose3>(x_to_key);
+
+                value_keys.insert(x_from_key);
+                value_keys.insert(x_to_key);
+
+                line[0] = x_from.x();
+                line[1] = x_to.x();
+
+                line[2] = x_from.y();
+                line[3] = x_to.y();
+
+                ImPlot::SetNextLineStyle(colors::CYAN);
+                ImPlot::PlotLine("Odometry Ground Truth", line, line + 2, 2);
+            }
+        }
+
+        for (const gtsam::Values::ConstKeyValuePair p : estimates)
+        {
+            unsigned char chr;
+            uint64_t idx;
+            if (gtsam::symbolChr(p.key) == 'x' || gtsam::symbolChr(p.key) == '\0')
+            {
+                chr = 'x';
+                idx = gtsam::symbolIndex(p.key);
+                if (idx < latest_time_step) {
+                    continue;
+                }
+                try
+                {
+                    gtsam::Pose2 x = p.value.cast<gtsam::Pose2>();
+                    xp = x.x();
+                    yp = x.y();
+                }
+                catch (const std::bad_cast &e)
+                {
+                    gtsam::Pose3 x = p.value.cast<gtsam::Pose3>();
+                    xp = x.x();
+                    yp = x.y();
+                }
+                legend = "Poses Ground Truth";
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, colors::ROSY_BROWN);
+            }
+            else if (gtsam::symbolChr(p.key) == 'l')
+            {
+                chr = 'l';
+                idx = gtsam::symbolIndex(p.key);
+                if (!lmks_to_draw.exists(p.key)) {
+                    continue;
+                }
+                try
+                {
+                    gtsam::Point2 l = p.value.cast<gtsam::Point2>();
+                    xp = l.x();
+                    yp = l.y();
+                }
+                catch (const std::bad_cast &e)
+                {
+                    gtsam::Point3 l = p.value.cast<gtsam::Point3>();
+                    xp = l.x();
+                    yp = l.y();
+                }
+                legend = "Landmarks Ground Truth";
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, colors::ORANGE);
+            }
+            else
+            {
+                std::cerr << "Received key " << gtsam::Symbol(p.key) << " which could not be parsed, skipping\n";
+                std::cerr << "Chr: \"" << gtsam::symbolChr(p.key) << "\"\nIndex: " << gtsam::symbolIndex(p.key) << "\n";
+                continue; // Should never happen??
+            }
+
+            if (!value_keys.exists(p.key))
+            { // Found value with no factor attached to it
+                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 10.0, ImVec4(1.0, 0.0, 0.0, 1.0));
+            }
+
+            ImPlot::PlotScatter(legend.c_str(), &xp, &yp, 1);
+            ss << chr << idx;
+            ImPlot::PlotText(ss.str().c_str(), xp, yp, false, ImVec2(15, 15));
+            ss.str("");
+        }
+
+    }
+
+
+
 
     void draw_covar_ell(const Eigen::Vector2d &l, const Eigen::Matrix2d &S, const double s, const char *covariance_label, const int n)
     {

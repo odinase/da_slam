@@ -2,8 +2,11 @@
 ---
 enable_stepping: false
 draw_factor_graph: true
-enable_step_limit: false
-step_to_increment_to: 60
+draw_factor_graph_ground_truth: true
+enable_factor_graph_window: true
+factor_graph_window: 20 
+enable_step_limit: true
+step_to_increment_to: 65
 autofit: true
 
 # MaximumLikelihood = 0, KnownDataAssociation = 1,

@@ -16,6 +16,10 @@ struct Config {
     int step_to_increment_to;
     bool autofit;
 
+    bool draw_factor_graph_ground_truth;
+    bool enable_factor_graph_window;
+    int factor_graph_window;
+
     da::AssociationMethod association_method;
 };
 

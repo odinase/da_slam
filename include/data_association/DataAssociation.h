@@ -79,10 +79,10 @@ namespace da {
     const Eigen::VectorXd &innov = a.error;
 
     Eigen::LLT<Eigen::MatrixXd> chol = S.llt();
-    auto &L = chol.matrixL();
 
     if (log_norm_factor)
     {
+      auto &L = chol.matrixL();
       log_norm_factor->get() = 2.0 * L.toDenseMatrix().diagonal().array().log().sum();
     }
 

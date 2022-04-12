@@ -41,19 +41,26 @@ namespace config
         yaml["step_to_increment_to"] >> step_to_increment_to;
         yaml["autofit"] >> autofit;
 
+        yaml["draw_factor_graph_ground_truth"] >> draw_factor_graph_ground_truth;
+        yaml["enable_factor_graph_window"] >> enable_factor_graph_window;
+        yaml["factor_graph_window"] >> factor_graph_window;
+
         int asso_method;
         yaml["association_method"] >> asso_method;
-        switch (asso_method) {
-            case 0:
-            case 1: {
-                association_method = static_cast<da::AssociationMethod>(asso_method);
-                break;
-            }
-            default: {
-                std::cout << "Unknown vaule passed in, got " << asso_method << ", using ML\n";
-                association_method = da::AssociationMethod::MaximumLikelihood;
-                break;                
-            }
+        switch (asso_method)
+        {
+        case 0:
+        case 1:
+        {
+            association_method = static_cast<da::AssociationMethod>(asso_method);
+            break;
+        }
+        default:
+        {
+            std::cout << "Unknown vaule passed in, got " << asso_method << ", using ML\n";
+            association_method = da::AssociationMethod::MaximumLikelihood;
+            break;
+        }
         }
     }
 

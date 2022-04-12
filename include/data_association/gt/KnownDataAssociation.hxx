@@ -68,6 +68,9 @@ namespace da
         // If we find the mapping, associate to it
         if (lmk_mapping_it != gt_lmk2map_lmk_.end())
         {
+// #ifdef LOGGING
+//           std::cout << "Found ground truth landmark " << gtsam::Symbol(lmk_gt);
+// #endif // LOGGING
           gtsam::Key l = lmk_mapping_it->second;
           POINT lmk = estimates.at<POINT>(l);
           const auto &meas = measurement.measurement;
@@ -87,6 +90,17 @@ namespace da
           h.extend(a);
         }
       }
+
+      std::cout << "\n\n";
+      std::cout << "KnownDataAssociations made associations:\n";
+      for (const auto& asso : h.associations()) {
+        if (asso->associated()) {
+        std::cout << "Measurement z" << measurements[asso->measurement].idx << " associated with landmark " << gtsam::Symbol(*asso->landmark) << "\n";
+        } else {
+          std::cout << "Measurement z" << measurements[asso->measurement].idx << " unassociated, initialized landmark " << gtsam::Symbol(gt_lmk2map_lmk_.find(meas_lmk_assos_[measurements[asso->measurement].idx])->second) << "\n";
+        }
+      }
+      std::cout << "\n";
 
       return h;
     }
