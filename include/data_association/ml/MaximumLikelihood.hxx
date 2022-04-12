@@ -296,6 +296,12 @@ namespace da
       // Make hypothesis to return later
       hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
 
+      // If no landmarks, return immediately 
+      if (num_landmarks == 0) {
+        h.fill_with_unassociated_measurements(num_measurements);
+        return h;
+      }
+
 #ifdef PROFILING
       std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
       std::cout << "Initialization of div variables took " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;

@@ -102,26 +102,7 @@ namespace slam
 
     da::hypothesis::Hypothesis h = da::hypothesis::Hypothesis::empty_hypothesis();
 
-//     // We have landmarks to associate
-//     if (latest_landmark_key_ > 0)
-//     {
-
-// #ifdef LOGGING
-//       std::cout << "We have landmarks to check, so run association.\n";
-// #endif
-
-      h = data_association_->associate(estimates, marginals, timestep.measurements);
-//     }
-//     // No landmarks, so no measurements can be associated
-//     else
-//     {
-
-// #ifdef LOGGING
-//       std::cout << "No associations yet, so construct unassociated hypothesis.\n";
-// #endif
-
-//       h.fill_with_unassociated_measurements(timestep.measurements.size());
-//     }
+    h = data_association_->associate(estimates, marginals, timestep.measurements);
 
     const auto &assos = h.associations();
 
@@ -135,7 +116,7 @@ namespace slam
     for (int i = 0; i < assos.size(); i++)
     {
       da::hypothesis::Association::shared_ptr a = assos[i];
-      uint64_t meas_idx = timestep.measurements[a->measurement].idx; 
+      uint64_t meas_idx = timestep.measurements[a->measurement].idx;
       POINT meas = timestep.measurements[a->measurement].measurement;
       const auto &meas_noise = timestep.measurements[a->measurement].noise;
       POINT meas_world = T_wb * meas;
@@ -183,6 +164,11 @@ namespace slam
       // }
 
       OptimizerParams params;
+      // params.setVerbosity("TERMINATION");
+      // params.setRelativeErrorTol(-1e10);
+      // params.setAbsoluteErrorTol(-1e10);
+      // params.maxIterations = 30;
+
       Optimizer optimizer(graph_, estimates_, params);
 
       estimates_ = optimizer.optimize();
@@ -205,6 +191,11 @@ namespace slam
     try
     {
       OptimizerParams params;
+      // params.setVerbosity("TERMINATION");
+      // params.setRelativeErrorTol(-1e10);
+      // params.setAbsoluteErrorTol(-1e10);
+      // params.maxIterations = 30;
+
       Optimizer optimizer(graph_, estimates_, params);
       estimates_ = optimizer.optimize();
     }
