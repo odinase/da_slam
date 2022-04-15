@@ -68,7 +68,8 @@ namespace da
         public:
 
             typedef std::shared_ptr<Hypothesis> shared_ptr;
-
+            
+            Hypothesis() = default;
             Hypothesis(const gtsam::FastVector<Association::shared_ptr> &associations, double nis) : assos_(associations), nis_(nis) {}
             int num_associations() const;
             int num_measurements() const;

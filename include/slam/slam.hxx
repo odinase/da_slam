@@ -23,9 +23,6 @@
 
 namespace slam
 {
-  gtsam::Marginals::Factorization factorization = gtsam::Marginals::CHOLESKY;
-  using OptimizerParams = gtsam::GaussNewtonParams;
-  using Optimizer = gtsam::GaussNewtonOptimizer;
 
   template <class POSE, class POINT>
   SLAM<POSE, POINT>::SLAM()
@@ -35,10 +32,17 @@ namespace slam
   }
 
   template <class POSE, class POINT>
-  void SLAM<POSE, POINT>::initialize(const gtsam::Vector &pose_prior_noise, std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association)
+  void SLAM<POSE, POINT>::initialize(
+      const gtsam::Vector &pose_prior_noise,
+      std::shared_ptr<da::DataAssociation<Measurement<POINT>>> data_association,
+      OptimizationMethod optimizaton_method,
+      gtsam::Marginals::Factorization marginals_factorization)
   {
     pose_prior_noise_ = gtsam::noiseModel::Diagonal::Sigmas(pose_prior_noise);
     data_association_ = data_association;
+
+    optimization_method_ = optimizaton_method;
+    marginals_factorization_ = marginals_factorization;
 
     // Add prior on first pose
     graph_.add(gtsam::PriorFactor<POSE>(X(latest_pose_key_), POSE(), pose_prior_noise_));
@@ -77,9 +81,12 @@ namespace slam
       addOdom(timestep.odom);
     }
 
+    da::hypothesis::Hypothesis h = da::hypothesis::Hypothesis::empty_hypothesis();
+
     // We have no measurements to associate, so terminate early
     if (timestep.measurements.size() == 0)
     {
+      latest_hypothesis_ = h;
 
 #ifdef LOGGING
       std::cout << "No measurements to associate, so returning now...\n";
@@ -90,19 +97,22 @@ namespace slam
 
     const gtsam::NonlinearFactorGraph &full_graph = getGraph();
     const gtsam::Values &estimates = currentEstimates();
+
+    hypothesis_graph_ = full_graph;
+    hypothesis_values_ = estimates;
+
     gtsam::Marginals marginals;
     try
     {
-      marginals = gtsam::Marginals(full_graph, estimates, factorization);
+      marginals = gtsam::Marginals(full_graph, estimates, marginals_factorization_);
     }
     catch (gtsam::IndeterminantLinearSystemException &indetErr)
     {
       throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, graph_, estimates_, "Error when computing marginals!");
     }
 
-    da::hypothesis::Hypothesis h = da::hypothesis::Hypothesis::empty_hypothesis();
-
     h = data_association_->associate(estimates, marginals, timestep.measurements);
+    latest_hypothesis_ = h;
 
     const auto &assos = h.associations();
 
@@ -143,41 +153,8 @@ namespace slam
 #ifdef LOGGING
     std::cout << "Associated " << associated_measurements << " / " << timestep.measurements.size() << " measurements in timestep " << timestep.step << "\n";
 #endif
-    // try
-    // {
 
-    //   update(graph_, initial_estimates_);
-    // }
-    // catch (gtsam::IndeterminantLinearSystemException &indetErr)
-    // {
-    //   throw IndeterminantLinearSystemExceptionWithISAM(indetErr, std::move(isam_), "Error when updating with new measurements!");
-    // }
-
-    // Call update extra times to relinearize with new loop closure
-    // if (new_loop_closure)
-    // {
-    try
-    {
-      // for (int i = 0; i < 20; i++)
-      // {
-      //   update();
-      // }
-
-      OptimizerParams params;
-      // params.setVerbosity("TERMINATION");
-      // params.setRelativeErrorTol(-1e10);
-      // params.setAbsoluteErrorTol(-1e10);
-      // params.maxIterations = 30;
-
-      Optimizer optimizer(graph_, estimates_, params);
-
-      estimates_ = optimizer.optimize();
-    }
-    catch (gtsam::IndeterminantLinearSystemException &indetErr)
-    {
-      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, graph_, estimates_, "Error after adding new measurements!");
-    }
-    // }
+    optimize();
   }
 
   template <class POSE, class POINT>
@@ -188,21 +165,7 @@ namespace slam
     estimates_.insert(X(latest_pose_key_ + 1), this_pose);
     latest_pose_ = this_pose;
 
-    try
-    {
-      OptimizerParams params;
-      // params.setVerbosity("TERMINATION");
-      // params.setRelativeErrorTol(-1e10);
-      // params.setAbsoluteErrorTol(-1e10);
-      // params.maxIterations = 30;
-
-      Optimizer optimizer(graph_, estimates_, params);
-      estimates_ = optimizer.optimize();
-    }
-    catch (gtsam::IndeterminantLinearSystemException &indetErr)
-    {
-      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, graph_, estimates_, "Error after adding odom!");
-    }
+    optimize();
 
     incrementLatestPoseKey();
   }
@@ -225,13 +188,33 @@ namespace slam
     return predicted_measurements;
   }
 
-  // template <class POSE, class POINT>
-  // void SLAM<POSE, POINT>::update(gtsam::NonlinearFactorGraph &graph, gtsam::Values &initial_estimates)
-  // {
-  //   isam_->update(graph_, initial_estimates_);
-
-  //   graph.resize(0);
-  //   initial_estimates.clear();
-  // }
+  template <class POSE, class POINT>
+  void SLAM<POSE, POINT>::optimize()
+  {
+    try
+    {
+      switch (optimization_method_)
+      {
+      case OptimizationMethod::GaussNewton:
+      {
+        gtsam::GaussNewtonParams params;
+        gtsam::GaussNewtonOptimizer optimizer(graph_, estimates_, params);
+        estimates_ = optimizer.optimize();
+        break;
+      }
+      case OptimizationMethod::LevenbergMarquardt:
+      {
+        gtsam::LevenbergMarquardtParams params;
+        gtsam::LevenbergMarquardtOptimizer optimizer(graph_, estimates_, params);
+        estimates_ = optimizer.optimize();
+        break;
+      }
+      }
+    }
+    catch (gtsam::IndeterminantLinearSystemException &indetErr)
+    {
+      throw IndeterminantLinearSystemExceptionWithGraphValues(indetErr, graph_, estimates_, "Error after adding odom!");
+    }
+  }
 
 } // namespace slam

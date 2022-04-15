@@ -91,6 +91,7 @@ namespace da
         }
       }
 
+#ifdef LOGGING
       std::cout << "\n\n";
       std::cout << "KnownDataAssociations made associations:\n";
       for (const auto& asso : h.associations()) {
@@ -101,6 +102,7 @@ namespace da
         }
       }
       std::cout << "\n";
+#endif // LOGGING
 
       return h;
     }

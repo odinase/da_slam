@@ -17,18 +17,19 @@
 #include <optional>
 #include "slam/types.h"
 
-
 namespace da
 {
-  enum class AssociationMethod : int {
+  enum class AssociationMethod : int
+  {
     MaximumLikelihood = 0,
     KnownDataAssociation = 1,
   };
 }
 
-std::ostream& operator<<(std::ostream& os, const da::AssociationMethod& asso_method);
+std::ostream &operator<<(std::ostream &os, const da::AssociationMethod &asso_method);
 
-namespace da {
+namespace da
+{
 
   template <class MEASUREMENT>
   class DataAssociation
@@ -210,8 +211,8 @@ namespace da {
   std::pair<gtsam::Vector, gtsam::Matrix> innovation(
       gtsam::Key x_key,
       gtsam::Key lmk_key,
-      const POSE& x,
-      const POINT& l,
+      const POSE &x,
+      const POINT &l,
       const gtsam::JointMarginal &joint_marginal,
       const slam::Measurement<POINT> &measurement)
   {

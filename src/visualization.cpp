@@ -24,6 +24,7 @@
 
 #include "visualization/visualization.h"
 #include "visualization/colors.h"
+#include "data_association/DataAssociation.h"
 
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
@@ -37,7 +38,7 @@ static void glfw_error_callback(int error, const char *description)
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-Eigen::MatrixXd ellipse(const Eigen::Vector2d &mu, const Eigen::Matrix2d &P, const double s = 1.0, const int n = 200)
+Eigen::MatrixXd ellipse2d(const Eigen::Vector2d &mu, const Eigen::Matrix2d &P, const double s = 1.0, const int n = 200)
 {
     Eigen::RowVectorXd thetas = Eigen::RowVectorXd::LinSpaced(n, 0, 2.0 * M_PI);
     Eigen::MatrixXd points(2, n);
@@ -48,26 +49,49 @@ Eigen::MatrixXd ellipse(const Eigen::Vector2d &mu, const Eigen::Matrix2d &P, con
     return ell;
 }
 
+std::vector<Eigen::MatrixXd> ellipse3d(const Eigen::Vector3d &mu, const Eigen::Matrix3d &P, const double s = 1.0, const int num_level_curves = 5, const int n = 200)
+{
+    //     offset = np.pi/180 * 10
+    // thetas = np.linspace(0, 2*np.pi, N)
+    // for k, phi in enumerate(np.linspace(np.pi/2, offset, 7)):
+    //     circ = np.array([
+    //         np.cos(thetas)*np.sin(phi),
+    //         np.sin(thetas)*np.sin(phi),
+    //         np.cos(np.full(N, phi))
+    //     ])
+    //     circ_trans = l + (L @ circ).T
+    //     circs.append(circ_trans.T)
+
+    std::vector<Eigen::MatrixXd> circs;
+    Eigen::LLT<Eigen::Matrix3d> chol(P);
+    Eigen::MatrixXd L = chol.matrixL().toDenseMatrix();
+
+    Eigen::RowVectorXd thetas = Eigen::RowVectorXd::LinSpaced(n, 0, 2.0 * M_PI);
+    double phi_start = 0.0;
+    double phi_stop = M_PI / 2.0;
+    double phi_step = (phi_stop - phi_start) / (num_level_curves - 1);
+    for (int i = 0; i < num_level_curves; i++)
+    {
+        Eigen::MatrixXd circ(3, n);
+        double phi = phi_start + phi_step * i;
+        circ.topRows(2) << thetas.array().cos() * sin(phi),
+            thetas.array().sin() * sin(phi);
+        circ.row(2).array() = cos(phi);
+        Eigen::MatrixXd ell = (s * L * circ).colwise() + mu;
+        circs.push_back(ell.topRows(2));
+    }
+    return circs;
+}
+
 Eigen::MatrixXd circle(const Eigen::Vector2d &center, const double r = 1.0, const int n = 200)
 {
     Eigen::RowVectorXd thetas = Eigen::RowVectorXd::LinSpaced(n, 0, 2.0 * M_PI);
     Eigen::MatrixXd points(2, n);
     points << thetas.array().cos(),
-              thetas.array().sin();
+        thetas.array().sin();
     Eigen::MatrixXd circ = points.colwise() + center;
     return circ;
 }
-
-// Eigen::MatrixXd ellipse(const Eigen::Vector3d &mu, const Eigen::Matrix3d &P, const double s = 1.0, const int n = 200)
-// {
-//     Eigen::RowVectorXd thetas = Eigen::RowVectorXd::LinSpaced(n, 0, 2.0 * M_PI);
-//     Eigen::MatrixXd points(2, n);
-//     points << thetas.array().cos(),
-//         thetas.array().sin();
-//     Eigen::LLT<Eigen::Matrix2d> chol(P);
-//     Eigen::MatrixXd ell = (s * chol.matrixL().toDenseMatrix() * points).colwise() + mu;
-//     return ell;
-// }
 
 namespace ImGui
 {
@@ -251,7 +275,8 @@ namespace visualization
             if (meas2d)
             {
                 gtsam::Key x_key = meas2d->key1();
-                if (gtsam::symbolIndex(x_key) < latest_time_step) {
+                if (gtsam::symbolIndex(x_key) < latest_time_step)
+                {
                     continue;
                 }
                 gtsam::Key lmk_key = meas2d->key2();
@@ -274,7 +299,8 @@ namespace visualization
             if (odom2d)
             {
                 gtsam::Key x_from_key = odom2d->key1();
-                if (gtsam::symbolIndex(x_from_key) < latest_time_step) {
+                if (gtsam::symbolIndex(x_from_key) < latest_time_step)
+                {
                     continue;
                 }
                 gtsam::Key x_to_key = odom2d->key2();
@@ -296,7 +322,8 @@ namespace visualization
             if (meas3d)
             {
                 gtsam::Key x_key = meas3d->key1();
-                if (gtsam::symbolIndex(x_key) < latest_time_step) {
+                if (gtsam::symbolIndex(x_key) < latest_time_step)
+                {
                     continue;
                 }
                 gtsam::Key lmk_key = meas3d->key2();
@@ -319,7 +346,8 @@ namespace visualization
             if (odom3d)
             {
                 gtsam::Key x_from_key = odom3d->key1();
-                if (gtsam::symbolIndex(x_from_key) < latest_time_step) {
+                if (gtsam::symbolIndex(x_from_key) < latest_time_step)
+                {
                     continue;
                 }
                 gtsam::Key x_to_key = odom3d->key2();
@@ -348,7 +376,8 @@ namespace visualization
             {
                 chr = 'x';
                 idx = gtsam::symbolIndex(p.key);
-                if (idx < latest_time_step) {
+                if (idx < latest_time_step)
+                {
                     continue;
                 }
                 try
@@ -370,7 +399,8 @@ namespace visualization
             {
                 chr = 'l';
                 idx = gtsam::symbolIndex(p.key);
-                if (!lmks_to_draw.exists(p.key)) {
+                if (!lmks_to_draw.exists(p.key))
+                {
                     continue;
                 }
                 try
@@ -405,9 +435,7 @@ namespace visualization
             ImPlot::PlotText(ss.str().c_str(), xp, yp, false, ImVec2(15, 15));
             ss.str("");
         }
-
     }
-
 
     void draw_factor_graph_ground_truth(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates, int latest_time_step)
     {
@@ -440,7 +468,8 @@ namespace visualization
             if (meas2d)
             {
                 gtsam::Key x_key = meas2d->key1();
-                if (gtsam::symbolIndex(x_key) < latest_time_step) {
+                if (gtsam::symbolIndex(x_key) < latest_time_step)
+                {
                     continue;
                 }
                 gtsam::Key lmk_key = meas2d->key2();
@@ -463,7 +492,8 @@ namespace visualization
             if (odom2d)
             {
                 gtsam::Key x_from_key = odom2d->key1();
-                if (gtsam::symbolIndex(x_from_key) < latest_time_step) {
+                if (gtsam::symbolIndex(x_from_key) < latest_time_step)
+                {
                     continue;
                 }
                 gtsam::Key x_to_key = odom2d->key2();
@@ -485,7 +515,8 @@ namespace visualization
             if (meas3d)
             {
                 gtsam::Key x_key = meas3d->key1();
-                if (gtsam::symbolIndex(x_key) < latest_time_step) {
+                if (gtsam::symbolIndex(x_key) < latest_time_step)
+                {
                     continue;
                 }
                 gtsam::Key lmk_key = meas3d->key2();
@@ -509,7 +540,8 @@ namespace visualization
             if (odom3d)
             {
                 gtsam::Key x_from_key = odom3d->key1();
-                if (gtsam::symbolIndex(x_from_key) < latest_time_step) {
+                if (gtsam::symbolIndex(x_from_key) < latest_time_step)
+                {
                     continue;
                 }
                 gtsam::Key x_to_key = odom3d->key2();
@@ -539,7 +571,8 @@ namespace visualization
             {
                 chr = 'x';
                 idx = gtsam::symbolIndex(p.key);
-                if (idx < latest_time_step) {
+                if (idx < latest_time_step)
+                {
                     continue;
                 }
                 try
@@ -561,7 +594,8 @@ namespace visualization
             {
                 chr = 'l';
                 idx = gtsam::symbolIndex(p.key);
-                if (!lmks_to_draw.exists(p.key)) {
+                if (!lmks_to_draw.exists(p.key))
+                {
                     continue;
                 }
                 try
@@ -596,15 +630,11 @@ namespace visualization
             ImPlot::PlotText(ss.str().c_str(), xp, yp, false, ImVec2(15, 15));
             ss.str("");
         }
-
     }
-
-
-
 
     void draw_covar_ell(const Eigen::Vector2d &l, const Eigen::Matrix2d &S, const double s, const char *covariance_label, const int n)
     {
-        Eigen::MatrixXd ell = ellipse(l, S, s, n);
+        Eigen::MatrixXd ell = ellipse2d(l, S, s, n);
         ImPlot::PlotLine(covariance_label, &ell(0, 0), &ell(1, 0), n, 0, 2 * sizeof(double));
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
         ImPlot::PlotScatter("lmk", &l(0), &l(1), 1);
@@ -617,4 +647,183 @@ namespace visualization
         ImPlot::PlotLine("##circle", &circ(0, 0), &circ(1, 0), n, 0, 2 * sizeof(double));
     }
 
+    void draw_hypothesis(const da::hypothesis::Hypothesis &hypothesis, const slam::Measurements<gtsam::Point2> &measurements, const gtsam::Values &estimates)
+    {
+    }
+
+    void draw_hypothesis(
+        const da::hypothesis::Hypothesis &hypothesis,
+        const slam::Measurements<gtsam::Point3> &measurements,
+        const gtsam::NonlinearFactorGraph &graph,
+        const gtsam::Values &estimates,
+        const gtsam::Key x_key,
+        const gtsam::Pose3 &x_pose,
+        const double sigmas,
+        const std::map<gtsam::Key, bool> &lmk_cov_to_draw)
+    {
+        gtsam::KeyVector keys = hypothesis.associated_landmarks();
+
+        // Draw landmarks
+        char chr;
+        uint64_t idx;
+        double xp, yp;
+        std::string legend;
+        std::stringstream ss;
+
+        chr = 'l';
+        legend = "Landmarks";
+        for (const gtsam::Key l : keys)
+        {
+            idx = gtsam::symbolIndex(l);
+            gtsam::Point3 lmk = estimates.at<gtsam::Point3>(l);
+            xp = lmk.x();
+            yp = lmk.y();
+            ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
+            ImPlot::PlotScatter(legend.c_str(), &xp, &yp, 1);
+            ss << chr << idx;
+            ImPlot::PlotText(ss.str().c_str(), xp, yp, false, ImVec2(15, 15));
+            ss.str("");
+        }
+
+        // Draw current pose
+        chr = 'x';
+        idx = gtsam::symbolIndex(x_key);
+        xp = x_pose.x();
+        yp = x_pose.y();
+        legend = "Pose";
+        ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
+        ImPlot::PlotScatter(legend.c_str(), &xp, &yp, 1);
+        ss << chr << idx;
+        ImPlot::PlotText(ss.str().c_str(), xp, yp, false, ImVec2(15, 15));
+        ss.str("");
+
+        keys.push_back(x_key);
+
+        gtsam::JointMarginal joint_marginal = gtsam::Marginals(graph, estimates).jointMarginalCovariance(keys);
+
+        double line[4];
+        std::string meas_label, lmk_label;
+        std::string table_title = "Mahalanobis threshold = " + std::to_string(sigmas * sigmas);
+
+        ImGui::Begin("MLE Costs");
+        ImGui::Text("%s", table_title.c_str());
+        if (ImGui::BeginTable("table", 4))
+        {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextWrapped("Measurement");
+            ImGui::TableNextColumn();
+            ImGui::TextWrapped("Landmark");
+            ImGui::TableNextColumn();
+            ImGui::TextWrapped("Mahalanobis distance");
+            ImGui::TableNextColumn();
+            ImGui::TextWrapped("MLE cost");
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("---");
+            ImGui::TableNextColumn();
+            ImGui::Text("---");
+            ImGui::TableNextColumn();
+            ImGui::Text("---");
+            ImGui::TableNextColumn();
+            ImGui::Text("---");
+            ImGui::EndTable();
+        }
+        ImGui::End();
+        // Loop over all measurements that were made in this timestep and
+        for (const auto &association : hypothesis.associations())
+        {
+            uint64_t meas_idx = association->measurement;
+            const auto &meas = measurements[meas_idx].measurement;
+            // const auto &noise = measurements[meas_idx].noise;
+
+            gtsam::Point3 meas_world = x_pose * meas;
+
+            line[0] = x_pose.x();
+            line[1] = meas_world.x();
+
+            line[2] = x_pose.y();
+            line[3] = meas_world.y();
+            ImPlot::PlotLine("##measurement", line, line + 2, 2);
+            ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 15.0f);
+            ImPlot::SetNextMarkerStyle(ImPlotMarker_Cross, 15.0f);
+            ImPlot::PlotScatter("Measurement", &meas_world.x(), &meas_world.y(), 1);
+            ImPlot::PopStyleVar();
+
+            // Interpolate point between for measurement text
+            chr = 'z';
+            idx = measurements[meas_idx].idx;
+            ss << chr << idx;
+
+            meas_label = ss.str();
+            ss.str("");
+
+            ImPlot::PlotText(meas_label.c_str(), meas_world.x(), meas_world.y(), false, ImVec2(15, 15));
+
+            double z_level = 0.0;
+
+            // std::map<gtsam::Key, double> lmk_mle_cost;
+            if (association->associated())
+            {
+                gtsam::Key lmk_key = *association->landmark;
+                gtsam::Point3 associated_lmk = estimates.at<gtsam::Point3>(lmk_key);
+                ss << gtsam::Symbol(lmk_key);
+                lmk_label = ss.str();
+                ss.str("");
+
+                double mh, log_norm_factor;
+                Eigen::Matrix3d S;
+                mh = da::individual_compatability(*association, x_key, joint_marginal, measurements, log_norm_factor, S);
+                ImGui::Begin("MLE Costs");
+                if (ImGui::BeginTable("table", 4))
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", meas_label.c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", lmk_label.c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%f", mh);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%f", mh + log_norm_factor);
+                    ImGui::EndTable();
+                }
+                ImGui::End();
+                if (lmk_cov_to_draw.at(lmk_key))
+                {
+                    std::vector<Eigen::MatrixXd> ell_level_curves = ellipse3d(associated_lmk, S, sigmas);
+                    for (const Eigen::MatrixXd &ell_level_curve : ell_level_curves)
+                    {
+                        int count = ell_level_curve.cols();
+                        int stride = 2 * sizeof(double);
+                        ImPlot::PlotLine("Covariance ellipse", &ell_level_curve(0, 0), &ell_level_curve(1, 0), count, 0, stride);
+                    }
+                }
+                // Draw line between measurement and lmk, and cross for measurement
+
+                line[0] = associated_lmk.x();
+                line[2] = associated_lmk.y();
+
+                ImPlot::PlotLine("Association", line, line + 2, 2);
+            }
+            else
+            {
+                ImGui::Begin("MLE Costs");
+                if (ImGui::BeginTable("table", 4))
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", meas_label.c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("N/A");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("N/A");
+                    ImGui::TableNextColumn();
+                    ImGui::Text("N/A");
+                    ImGui::EndTable();
+                }
+                ImGui::End();
+            }
+        }
+    }
 } // namespace visualization

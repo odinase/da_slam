@@ -20,9 +20,10 @@
 #endif
 
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include "data_association/Hypothesis.h"
 
-
-namespace visualization {
+namespace visualization
+{
 
     void new_frame();
     void render();
@@ -33,9 +34,22 @@ namespace visualization {
 
     // Assumes that factors are PoseToPoint 2D, robot is pose and landmarks are points
     void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates, int latest_time_step = 0);
+    void draw_hypothesis(const da::hypothesis::Hypothesis &hypothesis, const slam::Measurements<gtsam::Point2> &measurements, const gtsam::Values &estimates);
+    void draw_hypothesis( const da::hypothesis::Hypothesis &hypothesis,
+        const slam::Measurements<gtsam::Point3> &measurements,
+        const gtsam::NonlinearFactorGraph &graph,
+        const gtsam::Values &estimates,
+        const gtsam::Key x_key,
+        const gtsam::Pose3& x_pose,
+        const double sigmas,
+        const std::map<gtsam::Key, bool>& lmk_cov_to_draw);
+
     void draw_factor_graph_ground_truth(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates, int latest_time_step = 0);
-    void draw_covar_ell(const Eigen::Vector2d& l, const Eigen::Matrix2d& S, const double s = 1.0, const char* covariance_label = "Covariance", const int n = 200);
-    void draw_circle(const Eigen::Vector2d& center, const double r = 1.0, const int n = 200);
+    void draw_covar_ell(const Eigen::Vector2d &l, const Eigen::Matrix2d &S, const double s = 1.0, const char *covariance_label = "Covariance", const int n = 200);
+
+    // Draw slice of covariance ellipse for given z, defaults to z = 0.0
+    void draw_covar_ell(const Eigen::Vector3d &l, const Eigen::Matrix3d &S, const double z = 0.0, const double s = 1.0, const char *covariance_label = "Covariance", const int n = 200);
+    void draw_circle(const Eigen::Vector2d &center, const double r = 1.0, const int n = 200);
     // void draw_measurements(const slam::Timestep2D& timestep);
     // Eigen::MatrixXd ellipse(const Eigen::Vector2d &mu, const Eigen::Matrix2d &P, const double s = 1.0, const int n = 200);
     // Eigen::MatrixXd ellipse(const Eigen::Vector3d &mu, const Eigen::Matrix3d &P, const double s = 1.0, const int n = 200)
@@ -53,7 +67,6 @@ namespace visualization {
     //             const POINT& l = estimates.at<POINT>(k);
     //         }
     //         else if (gtsam::symbolChr(k) == 'x') {
-
 
     //     } else {
     //         continue; // Should not happen

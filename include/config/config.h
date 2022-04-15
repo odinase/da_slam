@@ -2,6 +2,8 @@
 
 #include <string>
 #include "data_association/DataAssociation.h"
+#include "slam/slam.h"
+#include <gtsam/nonlinear/Marginals.h>
 
 namespace config {
 
@@ -21,6 +23,12 @@ struct Config {
     int factor_graph_window;
 
     da::AssociationMethod association_method;
+
+    bool with_ground_truth;
+    bool stop_at_association_timestep;
+
+    slam::OptimizationMethod optimization_method;
+    gtsam::Marginals::Factorization marginals_factorization;
 };
 
 } // namespace config

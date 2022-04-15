@@ -1,13 +1,27 @@
 %YAML:1.0
 ---
 enable_stepping: false
+
 draw_factor_graph: true
 draw_factor_graph_ground_truth: true
+
 enable_factor_graph_window: true
 factor_graph_window: 20 
+
 enable_step_limit: true
-step_to_increment_to: 65
+step_to_increment_to: 234
+
 autofit: true
+
+stop_at_association_timestep: true
 
 # MaximumLikelihood = 0, KnownDataAssociation = 1,
 association_method: 0
+
+# GN = 0, LM = 1
+optimization_method: 1
+
+# CHOLESKY = 0, QR = 1
+marginals_factorization: 0
+
+with_ground_truth: true

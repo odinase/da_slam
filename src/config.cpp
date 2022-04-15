@@ -62,6 +62,49 @@ namespace config
             break;
         }
         }
+
+        yaml["with_ground_truth"] >> with_ground_truth;
+
+        int optim;
+        yaml["optimization_method"] >> optim;
+        switch (optim)
+        {
+        case 0:
+        case 1:
+        {
+            optimization_method = static_cast<slam::OptimizationMethod>(optim);
+            break;
+        }
+        default:
+        {
+            std::cout << "Unknown vaule passed in, got " << optim << ", using GN\n";
+            optimization_method = slam::OptimizationMethod::GaussNewton;
+            break;
+        }
+        }
+
+        int fact;
+        yaml["marginals_factorization"] >> fact;
+        switch (fact)
+        {
+        case 0: {
+            marginals_factorization = gtsam::Marginals::CHOLESKY;
+            break;
+        }
+        case 1:
+        {
+            marginals_factorization = gtsam::Marginals::QR;
+            break;
+        }
+        default:
+        {
+            std::cout << "Unknown vaule passed in, got " << fact << ", using Cholesky\n";
+            marginals_factorization = gtsam::Marginals::CHOLESKY;
+            break;
+        }
+        }
+
+        yaml["stop_at_association_timestep"] >> stop_at_association_timestep;
     }
 
 } // namespace config

@@ -56,8 +56,9 @@ namespace da
       // Make hypothesis to return later
       hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
 
-      // If no landmarks, return immediately 
-      if (num_landmarks == 0) {
+      // If no landmarks, return immediately
+      if (num_landmarks == 0)
+      {
         h.fill_with_unassociated_measurements(num_measurements);
         return h;
       }
@@ -124,6 +125,11 @@ namespace da
       // Map of landmarks that are individually compatible with at least one measurement, with NIS
       gtsam::FastMap<gtsam::Key, std::vector<std::pair<int, double>>> lmk_meas_asso_candidates;
 
+      static double running_mh_average = 0.0;
+      static int running_n = 0;
+
+      double mh_sum = 0.0;
+      int n = 0;
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;
@@ -139,18 +145,26 @@ namespace da
           gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
           hypothesis::Association a(meas_idx, l, Hx, Hl, error);
           double log_norm_factor;
-          Eigen::Matrix2d S;
-          double mh_dist = individual_compatability(a, x_key, joint_marginals, measurements, log_norm_factor, S);
+          double mh_dist = individual_compatability(a, x_key, joint_marginals, measurements, log_norm_factor);
 
           double mle_cost = mh_dist + log_norm_factor;
 
           // Individually compatible?
           if (mh_dist < mh_threshold_)
           {
+            mh_sum += mh_dist;
+            n++;
+            std::cout << "z" << measurements[meas_idx].idx << " with " << gtsam::Symbol(l) << ": " << mh_dist << "\n";
             lmk_meas_asso_candidates[l].push_back({meas_idx, mle_cost});
           }
         }
       }
+
+      double mh_average = mh_sum / n;
+      std::cout << "Average mh: " << mh_average << "\n";
+      running_mh_average = (running_n*running_mh_average + mh_average) / (running_n + 1);
+      running_n++;
+      std::cout << "Running average: " << running_mh_average << "\n";
 
 #ifdef PROFILING
       end = std::chrono::steady_clock::now();
@@ -262,17 +276,21 @@ namespace da
       // Regardless of if no or only some measurements were made, fill hypothesis with remaining unassociated measurements and return
       h.fill_with_unassociated_measurements(num_measurements);
 
-
+#ifdef LOGGING
       std::cout << "\n\nMaximum likelihood made associations:\n";
-      for (const auto& asso : h.associations()) {
-        if (asso->associated()) {
-        std::cout << "Measurement z" << measurements[asso->measurement].idx << " associated with landmark " << gtsam::Symbol(*asso->landmark) << "\n";
-        } else {
+      for (const auto &asso : h.associations())
+      {
+        if (asso->associated())
+        {
+          std::cout << "Measurement z" << measurements[asso->measurement].idx << " associated with landmark " << gtsam::Symbol(*asso->landmark) << "\n";
+        }
+        else
+        {
           std::cout << "Measurement z" << measurements[asso->measurement].idx << " unassociated\n";
         }
       }
       std::cout << "\n";
-
+#endif // LOGGING
 
 #ifdef HYPOTHESIS_QUALITY
       std::cout << "Computing joint NIS\n";
@@ -281,10 +299,6 @@ namespace da
 #endif
       return h;
     }
-
-
-
-
 
     template <class POSE, class POINT>
     Hypothesis MaximumLikelihood<POSE, POINT>::associate_bad(
@@ -308,8 +322,9 @@ namespace da
       // Make hypothesis to return later
       hypothesis::Hypothesis h = hypothesis::Hypothesis::empty_hypothesis();
 
-      // If no landmarks, return immediately 
-      if (num_landmarks == 0) {
+      // If no landmarks, return immediately
+      if (num_landmarks == 0)
+      {
         h.fill_with_unassociated_measurements(num_measurements);
         return h;
       }

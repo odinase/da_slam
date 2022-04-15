@@ -32,13 +32,16 @@ struct Measurement {
 using Measurement2D = Measurement<gtsam::Point2>;
 using Measurement3D = Measurement<gtsam::Point3>;
 
+template<class POINT>
+using Measurements = gtsam::FastVector<Measurement<POINT>>;
+
 
 template <class POSE, class POINT>
 struct Timestep
 {
     int step;
     Odometry<POSE> odom;
-    gtsam::FastVector<Measurement<POINT>> measurements;
+    Measurements<POINT> measurements;
 };
 
 using Timestep2D = Timestep<gtsam::Pose2, gtsam::Point2>;
