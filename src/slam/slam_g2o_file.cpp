@@ -18,6 +18,8 @@
 #include "slam/slam.h"
 #include "slam/types.h"
 #include "data_association/ml/MaximumLikelihood.h"
+#include "data_association/gt/KnownDataAssociation.h"
+#include "config/config.h"
 
 using gtsam::symbol_shorthand::L; // gtsam/slam/dataset.cpp
 using namespace std;
@@ -32,12 +34,17 @@ int main(int argc, char **argv)
     // default
     string g2oFile = findExampleDataFile("noisyToyGraph.txt");
     bool is3D = false;
-    double sigmas = 3.0;
+    double ic_prob = 0.99;
     std::string output_file;
     double range_threshold = 1e9;
     // Parse user's inputs
     if (argc > 1)
     {
+        if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)
+        {
+            cout << "Input args: <input dataset filename> <is3D> <ic prob> <range threshold> <output dataset filename>\n";
+            return 0;
+        }
         g2oFile = argv[1]; // input dataset filename
     }
     if (argc > 2)
@@ -47,8 +54,8 @@ int main(int argc, char **argv)
     }
     if (argc > 3)
     {
-        sigmas = atof(argv[3]);
-        std::cout << "sigmas: " << sigmas << std::endl;
+        ic_prob = atof(argv[3]);
+        std::cout << "ic_prob: " << ic_prob << std::endl;
     }
     if (argc > 4)
     {
@@ -60,6 +67,11 @@ int main(int argc, char **argv)
         output_file = argv[5];
         std::cout << "output_file: " << output_file << std::endl;
     }
+
+    config::Config conf("/home/mrg/prog/C++/da-slam/config/config.yaml");
+
+    slam::OptimizationMethod optimization_method = conf.optimization_method;
+    gtsam::Marginals::Factorization marginals_factorization = conf.marginals_factorization;
 
     vector<boost::shared_ptr<PoseToPointFactor<Pose2, Point2>>> measFactors2d;
     vector<boost::shared_ptr<PoseToPointFactor<Pose3, Point3>>> measFactors3d;
@@ -81,16 +93,42 @@ int main(int argc, char **argv)
     double final_error;
     Values estimates;
     bool caught_exception = false;
+
+    da::AssociationMethod association_method = conf.association_method;
+
+    std::cout << "Using association method " << conf.association_method << "\n";
+    std::cout << "Using optimization method " << conf.optimization_method << "\n";
+    std::cout << "Using marginals factorization " << (conf.marginals_factorization == gtsam::Marginals::CHOLESKY ? "Cholesky" : "QR") << "\n";
+
     try
     {
         if (is3D)
         {
+            double sigmas = sqrt(da::chi2inv(ic_prob, 3));
             gtsam::Vector pose_prior_noise = (gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished();
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::SLAM3D slam_sys{};
-            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point3>>> data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
-            slam_sys.initialize(pose_prior_noise, data_asso);
+            std::shared_ptr<da::DataAssociation<slam::Measurement3D>> data_asso;
+
+            switch (association_method)
+            {
+            case da::AssociationMethod::MaximumLikelihood:
+            {
+                data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
+                break;
+            }
+            case da::AssociationMethod::KnownDataAssociation:
+            {
+                std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
+                    measFactors3d,
+                    timesteps);
+                data_asso = std::make_shared<da::gt::KnownDataAssociation3D>(meas_lmk_assos);
+                break;
+            }
+            }
+
+            slam_sys.initialize(pose_prior_noise, data_asso, optimization_method, marginals_factorization);
             int tot_timesteps = timesteps.size();
             for (const auto &timestep : timesteps)
             {
@@ -120,12 +158,31 @@ int main(int argc, char **argv)
         }
         else
         {
+            double sigmas = sqrt(da::chi2inv(ic_prob, 2));
             gtsam::Vector pose_prior_noise = Vector3(1e-6, 1e-6, 1e-8);
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix(); // Calc sigmas from variances
             vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
             slam::SLAM2D slam_sys{};
-            std::shared_ptr<da::DataAssociation<slam::Measurement<gtsam::Point2>>> data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
-            slam_sys.initialize(pose_prior_noise, data_asso);
+            std::shared_ptr<da::DataAssociation<slam::Measurement2D>> data_asso;
+
+            switch (association_method)
+            {
+            case da::AssociationMethod::MaximumLikelihood:
+            {
+                data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
+                break;
+            }
+            case da::AssociationMethod::KnownDataAssociation:
+            {
+                std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
+                    measFactors2d,
+                    timesteps);
+                data_asso = std::make_shared<da::gt::KnownDataAssociation2D>(meas_lmk_assos);
+                break;
+            }
+            }
+
+            slam_sys.initialize(pose_prior_noise, data_asso, optimization_method, marginals_factorization);
             int tot_timesteps = timesteps.size();
             for (const auto &timestep : timesteps)
             {
