@@ -330,7 +330,7 @@ int main(int argc, char **argv)
                 }
                 ImGui::End(); // Menu
 
-                if (next_timestep && (!enable_step_limit || step < step_to_increment_to) && (proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)))
+                if (next_timestep && (!enable_step_limit || step < step_to_increment_to) && (!draw_association_hypothesis || proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)))
                 {
                     const slam::Timestep3D &timestep = timesteps[i];
 
