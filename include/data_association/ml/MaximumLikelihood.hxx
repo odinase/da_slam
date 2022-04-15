@@ -125,11 +125,6 @@ namespace da
       // Map of landmarks that are individually compatible with at least one measurement, with NIS
       gtsam::FastMap<gtsam::Key, std::vector<std::pair<int, double>>> lmk_meas_asso_candidates;
 
-      static double running_mh_average = 0.0;
-      static int running_n = 0;
-
-      double mh_sum = 0.0;
-      int n = 0;
       for (int meas_idx = 0; meas_idx < num_measurements; meas_idx++)
       {
         const auto &meas = measurements[meas_idx].measurement;
@@ -152,19 +147,10 @@ namespace da
           // Individually compatible?
           if (mh_dist < mh_threshold_)
           {
-            mh_sum += mh_dist;
-            n++;
-            std::cout << "z" << measurements[meas_idx].idx << " with " << gtsam::Symbol(l) << ": " << mh_dist << "\n";
             lmk_meas_asso_candidates[l].push_back({meas_idx, mle_cost});
           }
         }
       }
-
-      double mh_average = mh_sum / n;
-      std::cout << "Average mh: " << mh_average << "\n";
-      running_mh_average = (running_n*running_mh_average + mh_average) / (running_n + 1);
-      running_n++;
-      std::cout << "Running average: " << running_mh_average << "\n";
 
 #ifdef PROFILING
       end = std::chrono::steady_clock::now();

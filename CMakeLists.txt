@@ -1,32 +1,50 @@
 cmake_minimum_required(VERSION 3.10)
-project(slam)
+project(da-slam)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
 
-find_package(glfw3 REQUIRED)
-
-set(OpenGL_GL_PREFERENCE GLVND)
-find_package(OpenGL 3 REQUIRED)
 
 find_package(GTSAM REQUIRED) # Uses installed package
 find_package(OpenCV 3 REQUIRED)
-
 find_package(Eigen3 REQUIRED)
-# set(EIGEN3_INCLUDE_DIR "/usr/local/include/gtsam/3rdparty/Eigen")
-include_directories(${EIGEN3_INCLUDE_DIR})
 
-find_package (glog 0.6.0 REQUIRED)
+
+find_package(glfw3)
+set(OpenGL_GL_PREFERENCE GLVND)
+find_package(OpenGL 3)
+
+
+find_package (glog 0.6.0)
+
 
 include_directories(
   eigen3
   include
+  ${EIGEN3_INCLUDE_DIR}
+)
+
+if(OpenGL_FOUND AND glfw3_FOUND)
+set(VISUALIZATION_AVAILABLE TRUE)
+else()
+set(VISUALIZATION_AVAILABLE FALSE)
+endif()
+
+if(VISUALIZATION_AVAILABLE)
+include_directories(
   3rdparty/imgui
   3rdparty/implot
   3rdparty/imgui/backends
   ${OPENGL_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
 )
+endif()
+
+if (glog_FOUND)
+add_definitions(-DGLOG_AVAILABLE)
+message("Building with glog")
+else()
+message("Building without glog")
+endif()
 
 ### Options
 
@@ -66,10 +84,15 @@ else()
   message("HEARTBEAT = OFF")  
 endif()
 
+if(VISUALIZATION_AVAILABLE)
+message("VISUALIZATION_AVAILABLE = YES")
+else()
+message("VISUALIZATION_AVAILABLE = NO")
+endif()
 
 ### Libraries
 
-
+if(VISUALIZATION_AVAILABLE)
 add_library(imgui_backend
     3rdparty/imgui/backends/imgui_impl_glfw.cpp
     3rdparty/imgui/backends/imgui_impl_opengl3.cpp
@@ -112,7 +135,7 @@ target_link_libraries(visualization
     gtsam
     Eigen3::Eigen
 )
-
+endif()
 
 add_library(hypothesis
   src/data_association/Hypothesis.cpp
@@ -122,7 +145,6 @@ target_link_libraries(hypothesis
   Eigen3::Eigen
   gtsam
 )
-
 
 add_library(data_association
   src/data_association/DataAssociation.cpp
@@ -141,6 +163,30 @@ target_link_libraries(config
   ${OpenCV_LIBS}
 )
 
+if(VISUALIZATION_AVAILABLE)
+add_executable(slam_g2o_file_visualization
+  src/slam/slam_g2o_file_visualization.cpp
+)
+
+target_link_libraries(slam_g2o_file_visualization
+  Eigen3::Eigen
+  gtsam
+  gtsam_unstable
+  hypothesis
+  data_association
+  config
+  visualization
+)
+
+if(glog_FOUND)
+target_link_libraries(slam_g2o_file_visualization
+  glog::glog
+)
+endif()
+
+set_target_properties(slam_g2o_file_visualization PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
+endif()
+
 add_executable(slam_g2o_file
   src/slam/slam_g2o_file.cpp
 )
@@ -150,13 +196,19 @@ target_link_libraries(slam_g2o_file
   gtsam
   gtsam_unstable
   hypothesis
-  glog::glog
   data_association
-  visualization
   config
 )
 
+if(glog_FOUND)
+target_link_libraries(slam_g2o_file
+  glog::glog
+)
+endif()
+
+
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
+
 
 # Not the correct way of doing this, but whatever
 
@@ -168,9 +220,14 @@ target_link_libraries(test_auction_method
   Eigen3::Eigen
   gtsam
   gtsam_unstable
-  glog::glog
   data_association
 )
+  
+if(glog_FOUND)
+target_link_libraries(test_auction_method
+  glog::glog
+)
+endif()
 
 set_target_properties(test_auction_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
 
@@ -183,13 +240,18 @@ target_link_libraries(test_hungarian_method
   Eigen3::Eigen
   gtsam
   gtsam_unstable
-  glog::glog
   data_association
 )
+  
+if(glog_FOUND)
+target_link_libraries(test_hungarian_method
+  glog::glog
+)
+endif()
 
 set_target_properties(test_hungarian_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
 
-
+if(VISUALIZATION_AVAILABLE)
 add_executable(test_association_visualization
   tests/test_association_visualization.cpp
 )
@@ -198,11 +260,16 @@ target_link_libraries(test_association_visualization
   Eigen3::Eigen
   gtsam
   gtsam_unstable
-  glog::glog
   data_association
   hypothesis
   visualization
+  )
+
+if(glog_FOUND)
+target_link_libraries(test_association_visualization
+  glog::glog  
 )
+endif()
 
 set_target_properties(test_association_visualization PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
 
@@ -215,10 +282,16 @@ target_link_libraries(test_read_ground_truth_assos
   Eigen3::Eigen
   gtsam
   gtsam_unstable
-  glog::glog
   data_association
   hypothesis
   visualization
 )
+  
+if(glog_FOUND)
+target_link_libraries(test_read_ground_truth_assos
+  glog::glog
+)
+endif()
 
 set_target_properties(test_read_ground_truth_assos PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
+endif()
