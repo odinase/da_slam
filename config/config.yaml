@@ -9,18 +9,18 @@ enable_factor_graph_window: true
 factor_graph_window: 20 
 
 enable_step_limit: true
-step_to_increment_to: 234
+step_to_increment_to: 60
 
 autofit: true
 
-draw_association_hypothesis: true
+draw_association_hypothesis: false
 stop_at_association_timestep: true
 
 # MaximumLikelihood = 0, KnownDataAssociation = 1,
 association_method: 0
 
 # GN = 0, LM = 1
-optimization_method: 1
+optimization_method: 0
 
 # CHOLESKY = 0, QR = 1
 marginals_factorization: 0

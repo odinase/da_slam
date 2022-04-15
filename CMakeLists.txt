@@ -92,6 +92,32 @@ endif()
 
 ### Libraries
 
+
+add_library(config
+  src/config.cpp
+)
+
+target_link_libraries(config
+  ${OpenCV_LIBS}
+)
+
+add_library(hypothesis
+  src/data_association/Hypothesis.cpp
+)
+
+target_link_libraries(hypothesis
+  Eigen3::Eigen
+  gtsam
+)
+
+add_library(data_association
+  src/data_association/DataAssociation.cpp
+)
+
+target_link_libraries(data_association
+  Eigen3::Eigen
+)
+
 if(VISUALIZATION_AVAILABLE)
 add_library(imgui_backend
     3rdparty/imgui/backends/imgui_impl_glfw.cpp
@@ -134,34 +160,10 @@ target_link_libraries(visualization
     gtsam_unstable
     gtsam
     Eigen3::Eigen
+    config
+    data_association
 )
 endif()
-
-add_library(hypothesis
-  src/data_association/Hypothesis.cpp
-)
-
-target_link_libraries(hypothesis
-  Eigen3::Eigen
-  gtsam
-)
-
-add_library(data_association
-  src/data_association/DataAssociation.cpp
-)
-
-target_link_libraries(data_association
-  Eigen3::Eigen
-)
-
-
-add_library(config
-  src/config.cpp
-)
-
-target_link_libraries(config
-  ${OpenCV_LIBS}
-)
 
 if(VISUALIZATION_AVAILABLE)
 add_executable(slam_g2o_file_visualization

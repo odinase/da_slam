@@ -61,7 +61,6 @@ namespace slam
         gtsam::NonlinearFactorGraph hypothesis_graph_;
 
         unsigned long int latest_pose_key_;
-        POSE latest_pose_;
         unsigned long int latest_landmark_key_;
 
         void incrementLatestPoseKey() { latest_pose_key_++; }
@@ -92,14 +91,12 @@ namespace slam
         inline const gtsam::NonlinearFactorGraph& getGraph() const { return graph_; }
         inline double error() const { return getGraph().error(currentEstimates()); }
         inline const da::hypothesis::Hypothesis& latestHypothesis() const { return latest_hypothesis_; }
-        inline const POSE& latestPose() const { return latest_pose_; }
         inline gtsam::Key latestPoseKey() const { return X(latest_pose_key_); }
+        inline POSE latestPose() const { return estimates_.at<POSE>(latestPoseKey()); }
 
         inline const gtsam::NonlinearFactorGraph& hypothesisGraph() const { return hypothesis_graph_; }
         inline const gtsam::Values& hypothesisEstimates() const { return hypothesis_values_; }
 
-        // inline void update() { isam_->update(); }
-        // void update(gtsam::NonlinearFactorGraph& graph, gtsam::Values& initial_estimates);
     };
 
     using SLAM3D = SLAM<gtsam::Pose3, gtsam::Point3>;

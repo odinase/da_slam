@@ -126,7 +126,6 @@ namespace slam
     for (int i = 0; i < assos.size(); i++)
     {
       da::hypothesis::Association::shared_ptr a = assos[i];
-      uint64_t meas_idx = timestep.measurements[a->measurement].idx;
       POINT meas = timestep.measurements[a->measurement].measurement;
       const auto &meas_noise = timestep.measurements[a->measurement].noise;
       POINT meas_world = T_wb * meas;
@@ -160,10 +159,10 @@ namespace slam
   template <class POSE, class POINT>
   void SLAM<POSE, POINT>::addOdom(const Odometry<POSE> &odom)
   {
+    POSE latest_pose = latestPose();
     graph_.add(gtsam::BetweenFactor<POSE>(X(latest_pose_key_), X(latest_pose_key_ + 1), odom.odom, odom.noise));
-    POSE this_pose = latest_pose_ * odom.odom;
+    POSE this_pose = latest_pose * odom.odom;
     estimates_.insert(X(latest_pose_key_ + 1), this_pose);
-    latest_pose_ = this_pose;
 
     optimize();
 

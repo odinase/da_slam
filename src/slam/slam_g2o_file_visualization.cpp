@@ -112,6 +112,9 @@ bool connected_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Valu
     return true;
 }
 
+// template<class POSE, class POINT>
+// void run_simulation(slam::SLAM<POSE, POINT> slam_sys, const std::vector<slam::Timestep<POSE, POINT>>& timesteps, )
+
 int main(int argc, char **argv)
 {
 #ifdef GLOG_AVAILABLE
@@ -218,12 +221,12 @@ int main(int argc, char **argv)
     bool draw_association_hypothesis = conf.draw_association_hypothesis;
 
     std::cout << "Using association method " << conf.association_method << "\n";
+    da::AssociationMethod association_method = conf.association_method;
+
     std::cout << (with_ground_truth ? "Adding" : "Not adding") << " ground truth for comparison\n";
 
     std::stringstream ss;
-    std::string factor_graph_title, lmk_to_draw_covar_label;
-    ss << "Factor graph - Data association method: " << conf.association_method;
-    factor_graph_title = ss.str();
+    std::string lmk_to_draw_covar_label, buffer;
 
     std::cout << "Using optimization method " << conf.optimization_method << "\n";
     std::cout << "Using marginals factorization " << (conf.marginals_factorization == gtsam::Marginals::CHOLESKY ? "Cholesky" : "QR") << "\n";
@@ -274,11 +277,44 @@ int main(int argc, char **argv)
 
             int tot_timesteps = timesteps.size();
 
-            int i = 0;
-            int step = timesteps[i].step;
-            while (viz::running() && i < tot_timesteps)
+            int step = 0;
+            while (viz::running() && step < tot_timesteps)
             {
                 viz::new_frame();
+
+                ImGui::Begin("Config");
+                if (ImGui::BeginTable("config table", 2))
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    ImGui::TextWrapped("Association method");
+                    ImGui::TableNextColumn();
+                    ss.str("");
+                    ss << conf.association_method;
+                    buffer = ss.str();
+                    ImGui::TextWrapped("%s", buffer.c_str());
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    ImGui::TextWrapped("Optimization method");
+                    ImGui::TableNextColumn();
+                    ss.str("");
+                    ss << conf.optimization_method;
+                    buffer = ss.str();
+                    ImGui::TextWrapped("%s", buffer.c_str());
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    ImGui::TextWrapped("Marginals factorization");
+                    ImGui::TableNextColumn();
+                    ImGui::TextWrapped("%s", (conf.marginals_factorization == gtsam::Marginals::CHOLESKY ? "Cholesky" : "QR"));
+
+                    ImGui::EndTable();
+                }
+                ImGui::End();
 
                 ImGui::Begin("Menu");
 
@@ -330,11 +366,14 @@ int main(int argc, char **argv)
                 }
                 ImGui::End(); // Menu
 
+                if (enable_stepping && next_timestep)
+                {
+                    step_to_increment_to++;
+                }
+
                 if (next_timestep && (!enable_step_limit || step < step_to_increment_to) && (!draw_association_hypothesis || proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)))
                 {
-                    const slam::Timestep3D &timestep = timesteps[i];
-
-                    step = timestep.step;
+                    const slam::Timestep3D &timestep = timesteps[step];
 
                     start_t = std::chrono::high_resolution_clock::now();
 
@@ -365,7 +404,7 @@ int main(int argc, char **argv)
                         next_timestep = false;
                     }
                     clear_landmarks = true;
-                    i++;
+                    step++;
                 }
 
                 if (draw_factor_graph || (with_ground_truth && draw_factor_graph_ground_truth))
@@ -373,13 +412,13 @@ int main(int argc, char **argv)
                     int latest_timestep_to_draw;
                     if (enable_factor_graph_window)
                     {
-                        latest_timestep_to_draw = i - factor_graph_window;
+                        latest_timestep_to_draw = step - factor_graph_window;
                     }
                     else
                     {
                         latest_timestep_to_draw = 0;
                     }
-                    ImGui::Begin(factor_graph_title.c_str());
+                    ImGui::Begin("Factor graph");
                     if (autofit)
                     {
                         ImPlot::SetNextAxesToFit();
@@ -402,13 +441,16 @@ int main(int argc, char **argv)
                 if (draw_association_hypothesis)
                 {
                     ImGui::Begin("Association hypothesis");
+                    if (autofit)
+                    {
+                        ImPlot::SetNextAxesToFit();
+                    }
                     if (ImPlot::BeginPlot("##hypothesis", ImVec2(-1, -1)))
                     {
                         const auto &hypo = slam_sys.latestHypothesis();
-                        ss.str("");
 
                         // Hypothesis with no measurements is no use
-                        if (hypo.num_measurements() > 0 && i > 0)
+                        if (hypo.num_measurements() > 0 && step > 0)
                         {
                             ImGui::Begin("Landmark covariances to draw");
                             check_all_landmarks = ImGui::Button("Check all");
@@ -425,6 +467,7 @@ int main(int argc, char **argv)
                             gtsam::KeyVector lmk_keys = hypo.associated_landmarks();
                             std::sort(lmk_keys.begin(), lmk_keys.end(), [](gtsam::Key lhs, gtsam::Key rhs)
                                       { return gtsam::symbolIndex(lhs) < gtsam::symbolIndex(rhs); });
+                            ss.str("");
                             for (const auto &lmk : lmk_keys)
                             {
                                 ss << gtsam::Symbol(lmk);
@@ -445,16 +488,14 @@ int main(int argc, char **argv)
                             viz::draw_hypothesis(
                                 // const da::hypothesis::Hypothesis &hypothesis,
                                 hypo,
-                                // const slam::Measurements<gtsam::Point3> &measurements,
-                                timesteps[i - 1].measurements,
+                                // const slam::Measurements<gtsam::Point2> &measurements,
+                                timesteps[step - 1].measurements,
                                 // const gtsam::NonlinearFactorGraph &graph,
                                 slam_sys.hypothesisGraph(),
                                 // const gtsam::Values &estimates,
                                 slam_sys.hypothesisEstimates(),
                                 // const gtsam::Key x_key,
                                 slam_sys.latestPoseKey(),
-                                // const gtsam::Pose3 &x_pose,
-                                slam_sys.latestPose(),
                                 // const double sigmas,
                                 sigmas,
                                 // const std::map<gtsam::Key, bool> lmk_cov_to_draw
@@ -488,7 +529,6 @@ int main(int argc, char **argv)
 
             if (with_ground_truth)
             {
-                double sigmas = sqrt(da::chi2inv(ic_prob, 2));
                 data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
                 std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
                     measFactors2d,
@@ -496,34 +536,68 @@ int main(int argc, char **argv)
                 data_asso_gt = std::make_shared<da::gt::KnownDataAssociation2D>(meas_lmk_assos);
                 slam_sys_gt.initialize(pose_prior_noise, data_asso_gt);
             }
-
-            switch (conf.association_method)
+            else
             {
-            case da::AssociationMethod::MaximumLikelihood:
-            {
-                double sigmas = sqrt(da::chi2inv(ic_prob, 2));
-                data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
-                break;
-            }
-            case da::AssociationMethod::KnownDataAssociation:
-            {
-                std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
-                    measFactors2d,
-                    timesteps);
-                data_asso = std::make_shared<da::gt::KnownDataAssociation2D>(meas_lmk_assos);
-                break;
-            }
+                switch (conf.association_method)
+                {
+                case da::AssociationMethod::MaximumLikelihood:
+                {
+                    data_asso = std::make_shared<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
+                    break;
+                }
+                case da::AssociationMethod::KnownDataAssociation:
+                {
+                    std::map<uint64_t, gtsam::Key> meas_lmk_assos = measurement_landmarks_associations(
+                        measFactors2d,
+                        timesteps);
+                    data_asso = std::make_shared<da::gt::KnownDataAssociation2D>(meas_lmk_assos);
+                    break;
+                }
+                }
             }
 
             slam_sys.initialize(pose_prior_noise, data_asso, optimization_method, marginals_factorization);
 
             int tot_timesteps = timesteps.size();
 
-            int i = 0;
-            int step = timesteps[i].step;
-            while (viz::running() && i < tot_timesteps)
+            int step = 0;
+            while (viz::running() && step < tot_timesteps)
             {
                 viz::new_frame();
+
+                ImGui::Begin("Config");
+                if (ImGui::BeginTable("config table", 2))
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    ImGui::TextWrapped("Association method");
+                    ImGui::TableNextColumn();
+                    ss.str("");
+                    ss << conf.association_method;
+                    buffer = ss.str();
+                    ImGui::TextWrapped("%s", buffer.c_str());
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    ImGui::TextWrapped("Optimization method");
+                    ImGui::TableNextColumn();
+                    ss.str("");
+                    ss << conf.optimization_method;
+                    buffer = ss.str();
+                    ImGui::TextWrapped("%s", buffer.c_str());
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    ImGui::TextWrapped("Marginals factorization");
+                    ImGui::TableNextColumn();
+                    ImGui::TextWrapped("%s", (conf.marginals_factorization == gtsam::Marginals::CHOLESKY ? "Cholesky" : "QR"));
+
+                    ImGui::EndTable();
+                }
+                ImGui::End();
 
                 ImGui::Begin("Menu");
 
@@ -545,10 +619,6 @@ int main(int argc, char **argv)
                     ImGui::SetNextItemWidth(150.0f);
                     ImGui::InputInt("Step to increment to", &step_to_increment_to);
                 }
-                else
-                {
-                    step_to_increment_to = std::numeric_limits<int>::max();
-                }
 
                 ImGui::Checkbox("Draw factor graph", &draw_factor_graph);
                 if (with_ground_truth)
@@ -567,13 +637,26 @@ int main(int argc, char **argv)
                     }
                 }
                 ImGui::Checkbox("Autofit plot", &autofit);
+                ImGui::Checkbox("Draw association hypotheses", &draw_association_hypothesis);
+                if (draw_association_hypothesis)
+                {
+                    ImGui::Checkbox("Break at timestep with measurements", &stop_at_association_timestep);
+                    if (stop_at_association_timestep)
+                    {
+                        ImGui::SameLine();
+                        proceed_to_next_asso_timestep = ImGui::Button("Proceed to next association timestep");
+                    }
+                }
                 ImGui::End(); // Menu
 
-                if (next_timestep && step < step_to_increment_to)
+                if (enable_stepping && next_timestep)
                 {
-                    const slam::Timestep2D &timestep = timesteps[i];
+                    step_to_increment_to++;
+                }
 
-                    step = timestep.step;
+                if (next_timestep && (!enable_step_limit || step < step_to_increment_to) && (!draw_association_hypothesis || proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)))
+                {
+                    const slam::Timestep2D &timestep = timesteps[step];
 
                     start_t = std::chrono::high_resolution_clock::now();
 
@@ -582,6 +665,9 @@ int main(int argc, char **argv)
                     {
                         slam_sys_gt.processTimestep(timestep);
                     }
+
+                    // If we received measurements, we must have done data association
+                    did_association = timestep.measurements.size() > 0;
 
                     end_t = std::chrono::high_resolution_clock::now();
                     double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
@@ -600,7 +686,8 @@ int main(int argc, char **argv)
                     {
                         next_timestep = false;
                     }
-                    i++;
+                    clear_landmarks = true;
+                    step++;
                 }
 
                 if (draw_factor_graph || (with_ground_truth && draw_factor_graph_ground_truth))
@@ -608,13 +695,13 @@ int main(int argc, char **argv)
                     int latest_timestep_to_draw;
                     if (enable_factor_graph_window)
                     {
-                        latest_timestep_to_draw = i - factor_graph_window;
+                        latest_timestep_to_draw = step - factor_graph_window;
                     }
                     else
                     {
                         latest_timestep_to_draw = 0;
                     }
-                    ImGui::Begin(factor_graph_title.c_str());
+                    ImGui::Begin("Factor graph");
                     if (autofit)
                     {
                         ImPlot::SetNextAxesToFit();
@@ -632,6 +719,74 @@ int main(int argc, char **argv)
                         ImPlot::EndPlot();
                     }
                     ImGui::End(); // Factor graph
+                }
+
+                if (draw_association_hypothesis)
+                {
+                    ImGui::Begin("Association hypothesis");
+                    if (autofit)
+                    {
+                        ImPlot::SetNextAxesToFit();
+                    }
+                    if (ImPlot::BeginPlot("##hypothesis", ImVec2(-1, -1)))
+                    {
+                        const auto &hypo = slam_sys.latestHypothesis();
+
+                        // Hypothesis with no measurements is no use
+                        if (hypo.num_measurements() > 0 && step > 0)
+                        {
+                            ImGui::Begin("Landmark covariances to draw");
+                            check_all_landmarks = ImGui::Button("Check all");
+                            ImGui::SameLine();
+                            uncheck_all_landmarks = ImGui::Button("Uncheck all");
+
+                            if (clear_landmarks)
+                            {
+                                lmk_to_draw_covar.clear();
+                                clear_landmarks = false;
+                                uncheck_all_landmarks = false;
+                                check_all_landmarks = true;
+                            }
+                            gtsam::KeyVector lmk_keys = hypo.associated_landmarks();
+                            std::sort(lmk_keys.begin(), lmk_keys.end(), [](gtsam::Key lhs, gtsam::Key rhs)
+                                      { return gtsam::symbolIndex(lhs) < gtsam::symbolIndex(rhs); });
+                            ss.str("");
+                            for (const auto &lmk : lmk_keys)
+                            {
+                                ss << gtsam::Symbol(lmk);
+                                lmk_to_draw_covar_label = ss.str();
+                                ss.str("");
+                                if (check_all_landmarks)
+                                {
+                                    lmk_to_draw_covar[lmk] = true;
+                                }
+                                if (uncheck_all_landmarks)
+                                {
+                                    lmk_to_draw_covar[lmk] = false;
+                                }
+                                ImGui::Checkbox(lmk_to_draw_covar_label.c_str(), &lmk_to_draw_covar[lmk]);
+                            }
+                            ImGui::End();
+
+                            viz::draw_hypothesis(
+                                // const da::hypothesis::Hypothesis &hypothesis,
+                                hypo,
+                                // const slam::Measurements<gtsam::Point2> &measurements,
+                                timesteps[step - 1].measurements,
+                                // const gtsam::NonlinearFactorGraph &graph,
+                                slam_sys.hypothesisGraph(),
+                                // const gtsam::Values &estimates,
+                                slam_sys.hypothesisEstimates(),
+                                // const gtsam::Key x_key,
+                                slam_sys.latestPoseKey(),
+                                // const double sigmas,
+                                sigmas,
+                                // const std::map<gtsam::Key, bool> lmk_cov_to_draw
+                                lmk_to_draw_covar);
+                        }
+                        ImPlot::EndPlot();
+                    }
+                    ImGui::End();
                 }
 
                 viz::render();
@@ -672,7 +827,7 @@ int main(int argc, char **argv)
             ImGui::Begin("Config");
             ImGui::Checkbox("Autofit plot toggle", &autofit_plot_toggle);
             ImGui::End();
-            ImGui::Begin(factor_graph_title.c_str());
+            ImGui::Begin("Factor graph");
             if (autofit_plot_toggle)
             {
                 ImPlot::SetNextAxesToFit();

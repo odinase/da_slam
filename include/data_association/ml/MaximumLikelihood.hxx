@@ -106,6 +106,7 @@ namespace da
 #ifdef LOGGING
         std::cout << "No landmarks close enough to measurements, terminating!\n";
 #endif
+        h.fill_with_unassociated_measurements(num_measurements);
         return h;
       }
 
