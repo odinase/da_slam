@@ -26,6 +26,7 @@ struct Config {
 
     bool with_ground_truth;
     bool stop_at_association_timestep;
+    bool draw_association_hypothesis;
 
     slam::OptimizationMethod optimization_method;
     gtsam::Marginals::Factorization marginals_factorization;

@@ -13,6 +13,7 @@ step_to_increment_to: 234
 
 autofit: true
 
+draw_association_hypothesis: true
 stop_at_association_timestep: true
 
 # MaximumLikelihood = 0, KnownDataAssociation = 1,

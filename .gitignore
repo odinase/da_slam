@@ -2,6 +2,7 @@
 /slam_g2o_file
 /tests
 slam_g2o_file
+slam_g2o_file_visualization
 !/tests/test_hungarian_method.cpp
 !/tests/test_auction_method.cpp
 !/tests/test_association_visualization.cpp

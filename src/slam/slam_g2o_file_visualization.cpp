@@ -215,6 +215,7 @@ int main(int argc, char **argv)
     bool stop_at_association_timestep = conf.stop_at_association_timestep;
     bool did_association = false;
     bool proceed_to_next_asso_timestep = !stop_at_association_timestep;
+    bool draw_association_hypothesis = conf.draw_association_hypothesis;
 
     std::cout << "Using association method " << conf.association_method << "\n";
     std::cout << (with_ground_truth ? "Adding" : "Not adding") << " ground truth for comparison\n";
@@ -317,11 +318,15 @@ int main(int argc, char **argv)
                     }
                 }
                 ImGui::Checkbox("Autofit plot", &autofit);
-                ImGui::Checkbox("Break at timestep with measurements", &stop_at_association_timestep);
-                if (stop_at_association_timestep)
+                ImGui::Checkbox("Draw association hypotheses", &draw_association_hypothesis);
+                if (draw_association_hypothesis)
                 {
-                    ImGui::SameLine();
-                    proceed_to_next_asso_timestep = ImGui::Button("Proceed to next association timestep");
+                    ImGui::Checkbox("Break at timestep with measurements", &stop_at_association_timestep);
+                    if (stop_at_association_timestep)
+                    {
+                        ImGui::SameLine();
+                        proceed_to_next_asso_timestep = ImGui::Button("Proceed to next association timestep");
+                    }
                 }
                 ImGui::End(); // Menu
 
@@ -394,68 +399,71 @@ int main(int argc, char **argv)
                     ImGui::End(); // Factor graph
                 }
 
-                ImGui::Begin("Association hypothesis");
-                if (ImPlot::BeginPlot("##hypothesis", ImVec2(-1, -1)))
+                if (draw_association_hypothesis)
                 {
-                    const auto &hypo = slam_sys.latestHypothesis();
-                    ss.str("");
-
-                    // Hypothesis with no measurements is no use
-                    if (hypo.num_measurements() > 0 && i > 0)
+                    ImGui::Begin("Association hypothesis");
+                    if (ImPlot::BeginPlot("##hypothesis", ImVec2(-1, -1)))
                     {
-                        ImGui::Begin("Landmark covariances to draw");
-                        check_all_landmarks = ImGui::Button("Check all");
-                        ImGui::SameLine();
-                        uncheck_all_landmarks = ImGui::Button("Uncheck all");
+                        const auto &hypo = slam_sys.latestHypothesis();
+                        ss.str("");
 
-                        if (clear_landmarks)
+                        // Hypothesis with no measurements is no use
+                        if (hypo.num_measurements() > 0 && i > 0)
                         {
-                            lmk_to_draw_covar.clear();
-                            clear_landmarks = false;
-                            uncheck_all_landmarks = false;
-                            check_all_landmarks = true;
-                        }
-                        gtsam::KeyVector lmk_keys = hypo.associated_landmarks();
-                        std::sort(lmk_keys.begin(), lmk_keys.end(), [](gtsam::Key lhs, gtsam::Key rhs)
-                                  { return gtsam::symbolIndex(lhs) < gtsam::symbolIndex(rhs); });
-                        for (const auto &lmk : lmk_keys)
-                        {
-                            ss << gtsam::Symbol(lmk);
-                            lmk_to_draw_covar_label = ss.str();
-                            ss.str("");
-                            if (check_all_landmarks)
-                            {
-                                lmk_to_draw_covar[lmk] = true;
-                            }
-                            if (uncheck_all_landmarks)
-                            {
-                                lmk_to_draw_covar[lmk] = false;
-                            }
-                            ImGui::Checkbox(lmk_to_draw_covar_label.c_str(), &lmk_to_draw_covar[lmk]);
-                        }
-                        ImGui::End();
+                            ImGui::Begin("Landmark covariances to draw");
+                            check_all_landmarks = ImGui::Button("Check all");
+                            ImGui::SameLine();
+                            uncheck_all_landmarks = ImGui::Button("Uncheck all");
 
-                        viz::draw_hypothesis(
-                            // const da::hypothesis::Hypothesis &hypothesis,
-                            hypo,
-                            // const slam::Measurements<gtsam::Point3> &measurements,
-                            timesteps[i - 1].measurements,
-                            // const gtsam::NonlinearFactorGraph &graph,
-                            slam_sys.hypothesisGraph(),
-                            // const gtsam::Values &estimates,
-                            slam_sys.hypothesisEstimates(),
-                            // const gtsam::Key x_key,
-                            slam_sys.latestPoseKey(),
-                            // const gtsam::Pose3 &x_pose,
-                            slam_sys.latestPose(),
-                            // const double sigmas,
-                            sigmas,
-                            // const std::map<gtsam::Key, bool> lmk_cov_to_draw
-                            lmk_to_draw_covar);
+                            if (clear_landmarks)
+                            {
+                                lmk_to_draw_covar.clear();
+                                clear_landmarks = false;
+                                uncheck_all_landmarks = false;
+                                check_all_landmarks = true;
+                            }
+                            gtsam::KeyVector lmk_keys = hypo.associated_landmarks();
+                            std::sort(lmk_keys.begin(), lmk_keys.end(), [](gtsam::Key lhs, gtsam::Key rhs)
+                                      { return gtsam::symbolIndex(lhs) < gtsam::symbolIndex(rhs); });
+                            for (const auto &lmk : lmk_keys)
+                            {
+                                ss << gtsam::Symbol(lmk);
+                                lmk_to_draw_covar_label = ss.str();
+                                ss.str("");
+                                if (check_all_landmarks)
+                                {
+                                    lmk_to_draw_covar[lmk] = true;
+                                }
+                                if (uncheck_all_landmarks)
+                                {
+                                    lmk_to_draw_covar[lmk] = false;
+                                }
+                                ImGui::Checkbox(lmk_to_draw_covar_label.c_str(), &lmk_to_draw_covar[lmk]);
+                            }
+                            ImGui::End();
+
+                            viz::draw_hypothesis(
+                                // const da::hypothesis::Hypothesis &hypothesis,
+                                hypo,
+                                // const slam::Measurements<gtsam::Point3> &measurements,
+                                timesteps[i - 1].measurements,
+                                // const gtsam::NonlinearFactorGraph &graph,
+                                slam_sys.hypothesisGraph(),
+                                // const gtsam::Values &estimates,
+                                slam_sys.hypothesisEstimates(),
+                                // const gtsam::Key x_key,
+                                slam_sys.latestPoseKey(),
+                                // const gtsam::Pose3 &x_pose,
+                                slam_sys.latestPose(),
+                                // const double sigmas,
+                                sigmas,
+                                // const std::map<gtsam::Key, bool> lmk_cov_to_draw
+                                lmk_to_draw_covar);
+                        }
+                        ImPlot::EndPlot();
                     }
-                    ImPlot::EndPlot();
+                    ImGui::End();
                 }
-                ImGui::End();
 
                 viz::render();
             }
@@ -560,34 +568,6 @@ int main(int argc, char **argv)
                 }
                 ImGui::Checkbox("Autofit plot", &autofit);
                 ImGui::End(); // Menu
-
-                // ImGui::Begin("Association hypothesis");
-                // if (ImPlot::BeginPlot("##hypothesis")) {
-                //     const auto& hypo = slam_sys.latestHypothesis();
-
-                //     // Hypothesis with no measurements is no use
-                //     if (hypo.num_measurements() > 0) {
-
-                //     viz::draw_hypothesis(
-                //         // const da::hypothesis::Hypothesis &hypothesis,
-                //         hypo,
-                //         // const slam::Measurements<gtsam::Point3> &measurements,
-                //         timesteps[i].measurements,
-                //         // const gtsam::NonlinearFactorGraph &graph,
-                //         slam_sys.getGraph(),
-                //         // const gtsam::Values &estimates,
-                //         slam_sys.currentEstimates(),
-                //         // const gtsam::Key x_key,
-                //         slam_sys.latestPoseKey(),
-                //         // const gtsam::Pose3 &x_pose,
-                //         slam_sys.latestPose(),
-                //         // const double sigmas
-                //         sigmas
-                //         );
-                //     }
-                //     ImPlot::EndPlot();
-                // }
-                // ImGui::End();
 
                 if (next_timestep && step < step_to_increment_to)
                 {
