@@ -680,6 +680,7 @@ namespace visualization
                          const gtsam::Values &estimates,
                          const gtsam::Key x_key,
                          const double sigmas,
+                         const double ic_prob,
                          const std::map<gtsam::Key, bool> &lmk_cov_to_draw)
     {
         gtsam::KeyVector keys = hypothesis.associated_landmarks();
@@ -710,8 +711,8 @@ namespace visualization
         // Draw current pose
         chr = 'x';
         idx = gtsam::symbolIndex(x_key);
-        xp = x_pose.x();
-        yp = x_pose.y();
+        xp = 0;
+        yp = 0;
         legend = "Pose";
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
         ImPlot::PlotScatter(legend.c_str(), &xp, &yp, 1);
@@ -724,17 +725,15 @@ namespace visualization
         gtsam::Marginals marginals = gtsam::Marginals(graph, estimates);
         gtsam::JointMarginal joint_marginal = marginals.jointMarginalCovariance(keys);
 
-        const Eigen::MatrixXd Pxx = marginals.marginalCovariance(x_key);
-        Eigen::MatrixXd Gx, Gz;
         Eigen::Matrix2d S;
 
         double line[4];
         std::string meas_label, lmk_label;
-        std::string table_title = "Mahalanobis threshold = " + std::to_string(sigmas * sigmas) + ", sigma = " + std::to_string(sigmas);
+        std::string table_title = "Mahalanobis threshold = " + std::to_string(sigmas * sigmas) + ", sigma = " + std::to_string(sigmas) + ", probability (chi2 test) = " + std::to_string(ic_prob);
 
         const int num_cols_table = 5;
         ImGui::Begin("MLE Costs");
-        ImGui::Text("%s", table_title.c_str());
+        ImGui::TextWrapped("%s", table_title.c_str());
         if (ImGui::BeginTable("table", num_cols_table))
         {
             ImGui::TableNextRow();
@@ -769,18 +768,18 @@ namespace visualization
             uint64_t meas_idx = association->measurement;
             const gtsam::Point2 &meas = measurements[meas_idx].measurement;
 
-            gtsam::Point2 meas_world = x_pose.transformFrom(meas, Gx, Gz);
+            // gtsam::Point2 meas_world = x_pose.transformFrom(meas, Gx, Gz);
 
-            line[0] = x_pose.x();
-            line[1] = meas_world.x();
+            line[0] = 0;
+            line[1] = meas.x();
 
-            line[2] = x_pose.y();
-            line[3] = meas_world.y();
+            line[2] = 0;
+            line[3] = meas.y();
 
             ImPlot::PlotLine("##measurement", line, line + 2, 2);
             ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 15.0f);
             ImPlot::SetNextMarkerStyle(ImPlotMarker_Cross, 15.0f);
-            ImPlot::PlotScatter("Measurement", &meas_world.x(), &meas_world.y(), 1);
+            ImPlot::PlotScatter("Measurement", &meas.x(), &meas.y(), 1);
             ImPlot::PopStyleVar();
 
             // Interpolate point between for measurement text
@@ -791,13 +790,14 @@ namespace visualization
             meas_label = ss.str();
             ss.str("");
 
-            ImPlot::PlotText(meas_label.c_str(), meas_world.x(), meas_world.y(), false, ImVec2(15, 15));
+            ImPlot::PlotText(meas_label.c_str(), meas.x(), meas.y(), false, ImVec2(15, 15));
 
             // std::map<gtsam::Key, double> lmk_mle_cost;
             if (association->associated())
             {
                 gtsam::Key lmk_key = *association->landmark;
                 gtsam::Point2 associated_lmk = estimates.at<gtsam::Point2>(lmk_key);
+                gtsam::Point2 associated_lmk_body = x_pose.transformTo(associated_lmk);
                 ss << gtsam::Symbol(lmk_key);
                 lmk_label = ss.str();
                 ss.str("");
@@ -823,19 +823,19 @@ namespace visualization
                 ImGui::End();
                 if (lmk_cov_to_draw.at(lmk_key))
                 {
-                    S = Gz * S * Gz.transpose() + Gx * Pxx * Gx.transpose(); // Express S in world frame. Correct to do this way??
-                    Eigen::MatrixXd ell = ellipse2d(associated_lmk, S, sigmas);
+                    // S = Gz * S * Gz.transpose() + Gx * Pxx * Gx.transpose(); // Express S in world frame. Correct to do this way??
+                    Eigen::MatrixXd ell = ellipse2d(associated_lmk_body, S, sigmas);
                     int count = ell.cols();
                     int stride = 2 * sizeof(double);
                     ImPlot::PlotLine("Covariance ellipse", &ell(0, 0), &ell(1, 0), count, 0, stride);
                 }
                 // Draw line between measurement and lmk, and cross for measurement
 
-                line[0] = associated_lmk.x();
-                line[1] = meas_world.x();
+                line[0] = associated_lmk_body.x();
+                line[1] = meas.x();
 
-                line[2] = associated_lmk.y();
-                line[3] = meas_world.y();
+                line[2] = associated_lmk_body.y();
+                line[3] = meas.y();
 
                 ImPlot::PlotLine("Association", line, line + 2, 2);
             }
@@ -869,10 +869,11 @@ namespace visualization
         const gtsam::Values &estimates,
         const gtsam::Key x_key,
         const double sigmas,
+        const double ic_prob,
         const std::map<gtsam::Key, bool> &lmk_cov_to_draw)
     {
         gtsam::KeyVector keys = hypothesis.associated_landmarks();
-        const gtsam::Pose3 &x_pose = estimates.at<gtsam::Pose3>(x_key);
+        const gtsam::Pose3 x_pose = estimates.at<gtsam::Pose3>(x_key);
 
         // Draw landmarks
         char chr;
@@ -887,6 +888,7 @@ namespace visualization
         {
             idx = gtsam::symbolIndex(l);
             gtsam::Point3 lmk = estimates.at<gtsam::Point3>(l);
+            lmk = x_pose.transformTo(lmk);
             xp = lmk.x();
             yp = lmk.y();
             ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
@@ -899,8 +901,8 @@ namespace visualization
         // Draw current pose
         chr = 'x';
         idx = gtsam::symbolIndex(x_key);
-        xp = x_pose.x();
-        yp = x_pose.y();
+        xp = 0;
+        yp = 0;
         legend = "Pose";
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(19.0 / 255.0, 160.0 / 255.0, 17.0 / 255.0, 1.0));
         ImPlot::PlotScatter(legend.c_str(), &xp, &yp, 1);
@@ -913,16 +915,14 @@ namespace visualization
         gtsam::Marginals marginals = gtsam::Marginals(graph, estimates);
         gtsam::JointMarginal joint_marginal = marginals.jointMarginalCovariance(keys);
 
-        const Eigen::MatrixXd Pxx = marginals.marginalCovariance(x_key);
-        Eigen::MatrixXd Gx, Gz;
         Eigen::Matrix3d S;
 
         double line[4];
         std::string meas_label, lmk_label;
-        std::string table_title = "Mahalanobis threshold = " + std::to_string(sigmas * sigmas);
+        std::string table_title = "Mahalanobis threshold = " + std::to_string(sigmas * sigmas) + ", sigma = " + std::to_string(sigmas) + ", probability (chi2 test) = " + std::to_string(ic_prob);
 
         ImGui::Begin("MLE Costs");
-        ImGui::Text("%s", table_title.c_str());
+        ImGui::TextWrapped("%s", table_title.c_str());
         if (ImGui::BeginTable("table", 4))
         {
             ImGui::TableNextRow();
@@ -933,8 +933,12 @@ namespace visualization
             ImGui::TableNextColumn();
             ImGui::TextWrapped("Mahalanobis distance");
             ImGui::TableNextColumn();
+            ImGui::TextWrapped("Sigma distance");
+            ImGui::TableNextColumn();
             ImGui::TextWrapped("MLE cost");
             ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("---");
             ImGui::TableNextColumn();
             ImGui::Text("---");
             ImGui::TableNextColumn();
@@ -954,17 +958,18 @@ namespace visualization
             const auto &meas = measurements[meas_idx].measurement;
             // const auto &noise = measurements[meas_idx].noise;
 
-            gtsam::Point3 meas_world = x_pose.transformFrom(meas, Gx, Gz);
+            // gtsam::Point3 meas_world = x_pose.transformFrom(meas, Gx, Gz);
 
-            line[0] = x_pose.x();
-            line[1] = meas_world.x();
+            line[0] = 0;
+            line[1] = meas.x();
 
-            line[2] = x_pose.y();
-            line[3] = meas_world.y();
+            line[2] = 0;
+            line[3] = meas.y();
+
             ImPlot::PlotLine("##measurement", line, line + 2, 2);
             ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 15.0f);
             ImPlot::SetNextMarkerStyle(ImPlotMarker_Cross, 15.0f);
-            ImPlot::PlotScatter("Measurement", &meas_world.x(), &meas_world.y(), 1);
+            ImPlot::PlotScatter("Measurement", &meas.x(), &meas.y(), 1);
             ImPlot::PopStyleVar();
 
             // Interpolate point between for measurement text
@@ -975,13 +980,14 @@ namespace visualization
             meas_label = ss.str();
             ss.str("");
 
-            ImPlot::PlotText(meas_label.c_str(), meas_world.x(), meas_world.y(), false, ImVec2(15, 15));
+            ImPlot::PlotText(meas_label.c_str(), meas.x(), meas.y(), false, ImVec2(15, 15));
 
             // std::map<gtsam::Key, double> lmk_mle_cost;
             if (association->associated())
             {
                 gtsam::Key lmk_key = *association->landmark;
                 gtsam::Point3 associated_lmk = estimates.at<gtsam::Point3>(lmk_key);
+                gtsam::Point3 associated_lmk_body = x_pose.transformTo(associated_lmk);
                 ss << gtsam::Symbol(lmk_key);
                 lmk_label = ss.str();
                 ss.str("");
@@ -999,14 +1005,16 @@ namespace visualization
                     ImGui::TableNextColumn();
                     ImGui::Text("%f", mh);
                     ImGui::TableNextColumn();
+                    ImGui::Text("%f", std::sqrt(mh));
+                    ImGui::TableNextColumn();
                     ImGui::Text("%f", mh + log_norm_factor);
                     ImGui::EndTable();
                 }
                 ImGui::End();
                 if (lmk_cov_to_draw.at(lmk_key))
                 {
-                    S = Gz * S * Gz.transpose() + Gx * Pxx * Gx.transpose(); // Transform S into world frame
-                    std::vector<Eigen::MatrixXd> ell_level_curves = ellipse3d(associated_lmk, S, sigmas);
+                    // S = Gz * S * Gz.transpose() + Gx * Pxx * Gx.transpose(); // Transform S into world frame
+                    std::vector<Eigen::MatrixXd> ell_level_curves = ellipse3d(associated_lmk_body, S, sigmas);
                     for (const Eigen::MatrixXd &ell_level_curve : ell_level_curves)
                     {
                         int count = ell_level_curve.cols();
@@ -1016,8 +1024,8 @@ namespace visualization
                 }
                 // Draw line between measurement and lmk, and cross for measurement
 
-                line[0] = associated_lmk.x();
-                line[2] = associated_lmk.y();
+                line[0] = associated_lmk_body.x();
+                line[2] = associated_lmk_body.y();
 
                 ImPlot::PlotLine("Association", line, line + 2, 2);
             }
@@ -1029,6 +1037,8 @@ namespace visualization
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn();
                     ImGui::Text("%s", meas_label.c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("N/A");
                     ImGui::TableNextColumn();
                     ImGui::Text("N/A");
                     ImGui::TableNextColumn();

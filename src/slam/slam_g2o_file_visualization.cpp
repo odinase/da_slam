@@ -366,9 +366,9 @@ int main(int argc, char **argv)
                 }
                 ImGui::End(); // Menu
 
-                if (enable_stepping && next_timestep)
+                if (enable_stepping && next_timestep || stop_at_association_timestep && proceed_to_next_asso_timestep)
                 {
-                    step_to_increment_to++;
+                    step_to_increment_to = step + 1;
                 }
 
                 if (next_timestep && (!enable_step_limit || step < step_to_increment_to) && (!draw_association_hypothesis || proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)))
@@ -498,6 +498,8 @@ int main(int argc, char **argv)
                                 slam_sys.latestPoseKey(),
                                 // const double sigmas,
                                 sigmas,
+                                // const double sigmas,
+                                ic_prob,
                                 // const std::map<gtsam::Key, bool> lmk_cov_to_draw
                                 lmk_to_draw_covar);
                         }
@@ -781,6 +783,8 @@ int main(int argc, char **argv)
                                 slam_sys.latestPoseKey(),
                                 // const double sigmas,
                                 sigmas,
+                                // const double sigmas,
+                                ic_prob,
                                 // const std::map<gtsam::Key, bool> lmk_cov_to_draw
                                 lmk_to_draw_covar);
                         }

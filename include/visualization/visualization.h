@@ -42,6 +42,7 @@ namespace visualization
                          const gtsam::Values &estimates,
                          const gtsam::Key x_key,
                          const double sigmas,
+                         const double ic_prob,
                          const std::map<gtsam::Key, bool> &lmk_cov_to_draw);
 
     void draw_hypothesis(const da::hypothesis::Hypothesis &hypothesis,
@@ -50,6 +51,7 @@ namespace visualization
                          const gtsam::Values &estimates,
                          const gtsam::Key x_key,
                          const double sigmas,
+                         const double ic_prob,
                          const std::map<gtsam::Key, bool> &lmk_cov_to_draw);
 
     void draw_factor_graph_ground_truth(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates, int latest_time_step = 0);
