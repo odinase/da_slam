@@ -699,6 +699,7 @@ namespace visualization
         {
             idx = gtsam::symbolIndex(l);
             gtsam::Point2 lmk = estimates.at<gtsam::Point2>(l);
+            lmk = x_pose.transformTo(lmk);
             xp = lmk.x();
             yp = lmk.y();
             ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
@@ -830,6 +831,7 @@ namespace visualization
                     ImPlot::PlotLine("Covariance ellipse", &ell(0, 0), &ell(1, 0), count, 0, stride);
                 }
                 // Draw line between measurement and lmk, and cross for measurement
+
 
                 line[0] = associated_lmk_body.x();
                 line[1] = meas.x();
