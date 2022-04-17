@@ -8,12 +8,12 @@ draw_factor_graph_ground_truth: true
 enable_factor_graph_window: false
 factor_graph_window: 20 
 
-enable_step_limit: false
+enable_step_limit: true
 step_to_increment_to: 80
 
 autofit: true
 
-draw_association_hypothesis: false
+draw_association_hypothesis: true
 stop_at_association_timestep: true
 
 # MaximumLikelihood = 0, KnownDataAssociation = 1,

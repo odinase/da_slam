@@ -924,8 +924,9 @@ namespace visualization
         std::string table_title = "Mahalanobis threshold = " + std::to_string(sigmas * sigmas) + ", sigma = " + std::to_string(sigmas) + ", probability (chi2 test) = " + std::to_string(ic_prob);
 
         ImGui::Begin("MLE Costs");
+        constexpr int NUM_TABLE_COLS = 5;
         ImGui::TextWrapped("%s", table_title.c_str());
-        if (ImGui::BeginTable("table", 4))
+        if (ImGui::BeginTable("table", NUM_TABLE_COLS))
         {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
@@ -997,7 +998,7 @@ namespace visualization
                 double mh, log_norm_factor;
                 mh = da::individual_compatability(*association, x_key, joint_marginal, measurements, log_norm_factor, S);
                 ImGui::Begin("MLE Costs");
-                if (ImGui::BeginTable("table", 4))
+                if (ImGui::BeginTable("table", NUM_TABLE_COLS))
                 {
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn();
@@ -1034,7 +1035,7 @@ namespace visualization
             else
             {
                 ImGui::Begin("MLE Costs");
-                if (ImGui::BeginTable("table", 4))
+                if (ImGui::BeginTable("table", NUM_TABLE_COLS))
                 {
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn();
