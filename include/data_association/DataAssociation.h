@@ -9,9 +9,6 @@
 #include <iostream>
 #include <cmath>
 #include <utility>
-#include "visualization/visualization.h"
-#include "imgui.h"
-#include "implot.h"
 #include <functional>
 #include <memory>
 #include <optional>
