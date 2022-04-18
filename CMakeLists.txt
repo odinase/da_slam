@@ -163,9 +163,8 @@ target_link_libraries(visualization
     config
     data_association
 )
-endif()
 
-if(VISUALIZATION_AVAILABLE)
+
 add_executable(slam_g2o_file_visualization
   src/slam/slam_g2o_file_visualization.cpp
 )
