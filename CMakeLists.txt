@@ -84,6 +84,15 @@ else()
   message("HEARTBEAT = OFF")  
 endif()
 
+option(WITH_TESTS "Compile poor man's testing suite" OFF)
+
+if (WITH_TESTS)
+  message("WITH_TESTS = ON")
+else()
+  message("WITH_TESTS = OFF")  
+endif()
+
+
 if(VISUALIZATION_AVAILABLE)
 message("VISUALIZATION_AVAILABLE = YES")
 else()
@@ -213,6 +222,8 @@ set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_
 
 # Not the correct way of doing this, but whatever
 
+if(WITH_TESTS)
+
 add_executable(test_auction_method
   tests/test_auction_method.cpp
 )
@@ -295,4 +306,5 @@ target_link_libraries(test_read_ground_truth_assos
 endif()
 
 set_target_properties(test_read_ground_truth_assos PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
-endif()
+endif() # VISUALIZATION
+endif() # WITH_TESTS
