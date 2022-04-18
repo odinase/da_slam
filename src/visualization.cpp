@@ -57,16 +57,17 @@ std::vector<Eigen::MatrixXd> ellipse3d(const Eigen::Vector3d &mu, const Eigen::M
     Eigen::MatrixXd L = chol.matrixL().toDenseMatrix();
 
     Eigen::RowVectorXd thetas = Eigen::RowVectorXd::LinSpaced(n, 0, 2.0 * M_PI);
-    double phi_start = 0.0;
-    double phi_stop = M_PI / 2.0;
-    double phi_step = (phi_stop - phi_start) / (num_level_curves - 1);
+    double z_start = 0.0;
+    double z_stop = 1.0;
+    double z_step = (z_stop - z_start) / (num_level_curves - 1);
     for (int i = 0; i < num_level_curves; i++)
     {
         Eigen::MatrixXd circ(3, n);
-        double phi = phi_start + phi_step * i;
+        double z = z_start + z_step * i;
+        double phi = acos(z);
         circ.topRows(2) << thetas.array().cos() * sin(phi),
             thetas.array().sin() * sin(phi);
-        circ.row(2).array() = cos(phi);
+        circ.row(2).array() = z;
         Eigen::MatrixXd ell = (s * L * circ).colwise() + mu;
         circs.push_back(ell.topRows(2));
     }
