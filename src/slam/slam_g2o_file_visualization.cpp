@@ -393,9 +393,6 @@ int main(int argc, char **argv)
                     cout << "Duration: " << duration << " seconds\n"
                          << "Average time one iteration: " << avg_time << " seconds\n";
 #endif
-#ifdef HEARTBEAT
-                    cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
-#endif
                     total_time += duration;
                     final_error = slam_sys.error();
                     estimates = slam_sys.currentEstimates();
@@ -677,9 +674,6 @@ int main(int argc, char **argv)
                     avg_time = (timestep.step * avg_time + duration) / (timestep.step + 1.0);
                     cout << "Duration: " << duration << " seconds\n"
                          << "Average time one iteration: " << avg_time << " seconds\n";
-#endif
-#ifdef HEARTBEAT
-                    cout << "Processed timestep " << timestep.step << ", " << double(timestep.step + 1) / tot_timesteps * 100.0 << "\% complete\n";
 #endif
                     total_time += duration;
                     final_error = slam_sys.error();
