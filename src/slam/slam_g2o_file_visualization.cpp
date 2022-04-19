@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <string>
 #include <sstream>
+#include <filesystem>
 
 #ifdef GLOG_AVAILABLE
 #include <glog/logging.h>
@@ -112,8 +113,38 @@ bool connected_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Valu
     return true;
 }
 
-// template<class POSE, class POINT>
-// void run_simulation(slam::SLAM<POSE, POINT> slam_sys, const std::vector<slam::Timestep<POSE, POINT>>& timesteps, )
+
+// Unnecessary?
+void save_factor_graph(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& estimates, const std::string& path) {
+    std::string filename = path + "/factor_graph.g2o";
+    writeG2o(graph, estimates, filename);
+}
+
+template<class POINT> 
+void save_hypothesis(const da::hypothesis::Hypothesis& hyp, const gtsam::NonlinearFactorGraph& hyp_graph, const gtsam::Values& hyp_estimates, const slam::Measurements<POINT>& measurements, const std::string& path) {
+    std::string graph_filename = path + "/association_graph.g2o";
+    writeG2o(hyp_graph, hyp_estimates, graph_filename);
+
+    std::string hypothesis_filename = path + "/association_hypothesis.txt";
+    std::ofstream f(hypothesis_filename);
+    for (const auto& asso : hyp.associations()) {
+        f << 'z' << measurements[asso->measurement].idx << ' ' << measurements[asso->measurement].measurement.transpose();
+        if (asso->associated()) {
+            f << ' ' << gtsam::Symbol(*asso->landmark);
+        }
+        f << '\n';
+    }
+}
+
+std::string timestep_log_path(char** argv, int step) {
+    std::filesystem::path p = ::filesystem::weakly_canonical(argv[0]).parent_path();
+    std::stringstream ss;
+    ss << "/log/timestep_" << step;
+    p += std::filesystem::path(ss.str());
+    std::filesystem::create_directories(p);
+    return p.string();
+}
+
 
 int main(int argc, char **argv)
 {
@@ -219,6 +250,8 @@ int main(int argc, char **argv)
     bool did_association = false;
     bool proceed_to_next_asso_timestep = !stop_at_association_timestep;
     bool draw_association_hypothesis = conf.draw_association_hypothesis;
+    bool do_save_factor_graph = false;
+    bool do_save_hypothesis = false;
 
     std::cout << "Using association method " << conf.association_method << "\n";
     da::AssociationMethod association_method = conf.association_method;
@@ -353,6 +386,9 @@ int main(int argc, char **argv)
                         ImGui::TextWrapped("Factor graph window (how many latest timesteps to draw)");
                     }
                 }
+                if (draw_factor_graph) {
+                    do_save_factor_graph = ImGui::Button("Save factor graph and estimates to file");
+                }
                 ImGui::Checkbox("Autofit plot", &autofit);
                 ImGui::Checkbox("Draw association hypotheses", &draw_association_hypothesis);
                 if (draw_association_hypothesis)
@@ -363,6 +399,7 @@ int main(int argc, char **argv)
                         ImGui::SameLine();
                         proceed_to_next_asso_timestep = ImGui::Button("Proceed to next association timestep");
                     }
+                    do_save_hypothesis = ImGui::Button("Save association hypothesis to file");
                 }
                 ImGui::End(); // Menu
 
@@ -435,6 +472,11 @@ int main(int argc, char **argv)
                     ImGui::End(); // Factor graph
                 }
 
+                if (do_save_factor_graph) {
+                    std::string path = timestep_log_path(argv, step);
+                    save_factor_graph(slam_sys.getGraph(), slam_sys.currentEstimates(), path);
+                }
+
                 if (draw_association_hypothesis)
                 {
                     ImGui::Begin("Association hypothesis");
@@ -503,6 +545,11 @@ int main(int argc, char **argv)
                         ImPlot::EndPlot();
                     }
                     ImGui::End();
+                }
+
+                if (do_save_hypothesis) {
+                    std::string path = timestep_log_path(argv, step);
+                    save_hypothesis(slam_sys.latestHypothesis(), slam_sys.hypothesisGraph(), slam_sys.hypothesisEstimates(), timesteps[step - 1].measurements, path);
                 }
 
                 viz::render();
