@@ -39,6 +39,8 @@ if __name__ == "__main__":
     # for o in dir(gtsam.gtsam):
     #     print(o)
 
+    print(dir(gtsam.Pose2()))
+
     noise = gtsam.noiseModel.Diagonal.Sigmas(
                  np.array([0.3, 0.3]))
 

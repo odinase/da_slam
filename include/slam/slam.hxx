@@ -50,30 +50,6 @@ namespace slam
   }
 
   template <class POSE, class POINT>
-  gtsam::FastVector<POSE> SLAM<POSE, POINT>::getTrajectory() const
-  {
-    gtsam::Values estimates = currentEstimates();
-    gtsam::FastVector<POSE> trajectory;
-    for (int i = 0; i < latest_pose_key_; i++)
-    {
-      trajectory.push_back(estimates.at<POSE>(X(i)));
-    }
-    return trajectory;
-  }
-
-  template <class POSE, class POINT>
-  gtsam::FastVector<POINT> SLAM<POSE, POINT>::getLandmarkPoints() const
-  {
-    gtsam::Values estimates = currentEstimates();
-    gtsam::FastVector<POINT> landmarks;
-    for (int i = 0; i < latest_landmark_key_; i++)
-    {
-      landmarks.push_back(estimates.at<POINT>(L(i)));
-    }
-    return landmarks;
-  }
-
-  template <class POSE, class POINT>
   void SLAM<POSE, POINT>::processTimestep(const Timestep<POSE, POINT> &timestep)
   {
     if (timestep.step > 0)
@@ -167,24 +143,6 @@ namespace slam
     optimize();
 
     incrementLatestPoseKey();
-  }
-
-  template <class POSE, class POINT>
-  gtsam::FastVector<POINT> SLAM<POSE, POINT>::predictLandmarks() const
-  {
-    const gtsam::Values estimates = currentEstimates();
-    gtsam::KeyList landmark_keys = estimates.filter(gtsam::Symbol::ChrTest('l')).keys();
-    if (landmark_keys.size() == 0)
-    {
-      return {};
-    }
-    gtsam::FastVector<POINT> predicted_measurements;
-    for (const auto &lmk : landmark_keys)
-    {
-      predicted_measurements.push_back(estimates.at<POINT>(lmk));
-    }
-
-    return predicted_measurements;
   }
 
   template <class POSE, class POINT>

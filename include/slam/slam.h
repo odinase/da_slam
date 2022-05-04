@@ -67,8 +67,6 @@ namespace slam
         void incrementLatestLandmarkKey() { latest_landmark_key_++; }
 
         void addOdom(const Odometry<POSE> &odom);
-        gtsam::FastVector<POINT> predictLandmarks() const;
-        void log_timestep(const Timestep<POSE, POINT>& timestep, const da::hypothesis::Hypothesis& h);
 
         OptimizationMethod optimization_method_;
         gtsam::Marginals::Factorization marginals_factorization_;
@@ -86,8 +84,6 @@ namespace slam
             OptimizationMethod optimizaton_method = OptimizationMethod::GaussNewton,
             gtsam::Marginals::Factorization marginals_factorization = gtsam::Marginals::CHOLESKY
         );
-        gtsam::FastVector<POSE> getTrajectory() const;
-        gtsam::FastVector<POINT> getLandmarkPoints() const;
         inline const gtsam::NonlinearFactorGraph& getGraph() const { return graph_; }
         inline double error() const { return getGraph().error(currentEstimates()); }
         inline const da::hypothesis::Hypothesis& latestHypothesis() const { return latest_hypothesis_; }
