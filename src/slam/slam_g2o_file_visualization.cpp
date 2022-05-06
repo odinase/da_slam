@@ -118,6 +118,7 @@ bool connected_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Valu
 void save_factor_graph(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& estimates, const std::string& path) {
     std::string filename = path + "/factor_graph.g2o";
     writeG2o(graph, estimates, filename);
+    writeG2o_with_landmarks(graph, estimates, filename);
 }
 
 template<class POINT> 
@@ -128,9 +129,21 @@ void save_hypothesis(const da::hypothesis::Hypothesis& hyp, const gtsam::Nonline
     std::string hypothesis_filename = path + "/association_hypothesis.txt";
     std::ofstream f(hypothesis_filename);
     for (const auto& asso : hyp.associations()) {
+        f << POINT::RowsAtCompileTime << "d ";
         f << 'z' << measurements[asso->measurement].idx << ' ' << measurements[asso->measurement].measurement.transpose();
         if (asso->associated()) {
             f << ' ' << gtsam::Symbol(*asso->landmark);
+            f << ' ';
+            size_t rows = asso->Hx.rows();
+            size_t cols = asso->Hx.cols() + asso->Hl.cols();
+            f << rows << ' ' << cols << ' ';
+            gtsam::Matrix H(rows, cols);
+            H << asso->Hx, asso->Hl;
+            for (int i = 0; i < rows; i++) {
+                for (int j = 0; j < cols; j++) { 
+                    f << H(i,j) << ' ';
+                }
+            }
         }
         f << '\n';
     }

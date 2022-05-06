@@ -4,6 +4,8 @@ from scipy.spatial.transform import Rotation as Rot
 from typing import List
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
+from typing import Optional
+import scipy.linalg as la
 
 
 # TODO: Make this adapt to 2D and 3D
@@ -89,6 +91,17 @@ class FactorGraph:
     odometry: List[Odometry]
     measurements: List[Measurement]
 
+    def find_pose(self, id):
+        for pose in self.poses:
+            if pose.id == id:
+                return pose
+
+    def find_lmk(self, id):
+        for lmk in self.lmks:
+            if lmk.id == id:
+                return lmk
+
+
 
 def readG2o(filename):
     with open(filename) as f:
@@ -141,6 +154,84 @@ def readG2o(filename):
 
         return FactorGraph(poses, lmks, odometry, measurements)
 
+@dataclass
+class Association:
+    m: str
+    meas: np.ndarray
+    l: Optional[str] = None
+    H: Optional[np.ndarray] = None
+
+    @property
+    def m_idx(self):
+        return int(self.m[1:])
+
+    @property
+    def l_idx(self):
+        return int(self.l[1:])
+ 
+def readHypothesis(filename):
+    assos = []
+    with open(filename) as f:
+        for line in map(lambda s: s.strip().split(), f):
+            if line[0] == '2d':
+                pass
+            elif line[0] == '3d':
+                meas, x, y, z = line[1:5]
+                asso = Association(meas, np.array([x, y, z], dtype=float))
+                if len(line[5:]) > 0: # We have association to add
+                    asso.l = line[5]
+                    rows, cols = line[6:8]
+                    rows = int(rows)
+                    cols = int(cols)
+                    asso.H = np.array(line[8:], dtype=float).reshape(rows, cols)
+            else:
+                print(f"Unknown measurement format! Expected '2d' or '3d', got '{line[0]}'")
+                continue
+
+            assos.append(asso)
+
+    return assos
+
+def ellipse3d(l, S, s = 5.0, n = 200):
+    L = la.cholesky(S).T
+
+    # Set of all spherical angles:
+    u = np.linspace(0, 2 * np.pi, n)
+    v = np.linspace(0, np.pi, n)
+
+    # Cartesian coordinates that correspond to the spherical angles:
+    # (this is the equation of an ellipsoid):
+    x = np.outer(np.cos(u), np.sin(v))
+    y = np.outer(np.sin(u), np.sin(v))
+    z = np.outer(np.ones_like(u), np.cos(v))
+
+    R = np.stack((x, y, z))
+
+    R = R.transpose((1, 2, 0)).reshape(-1, 3).T
+
+    ell = l + (s * L @ R).T
+
+    ell = ell.reshape(n, n, 3).transpose((2, 0, 1))
+    return ell
+
+def plot_hypothesis(assos: List[Association], assos_fg: FactorGraph):
+    fig3d = plt.figure()  # Square figure
+    ax3d = fig3d.add_subplot(111, projection='3d')
+    line = np.zeros((2, 3))
+    for asso in assos:
+        line[1] = asso.meas
+        ax3d.plot(*line)
+        # x, y, z = ellipse3d()
+
+
+        # fig, ax = plt.subplots(figsize=plt.figaspect(1))
+        # for circ in circs:
+        #     ax.plot(*circ[:2])
+        # # Plot:
+        # ax3d.plot_surface(x, y, z,  rstride=4, cstride=4, color='b', alpha=0.2)
+        # for k, circ in enumerate(circs):
+        #     ax3d.plot(*circ, lw=2, label=f'line {k}')
+
 
 if __name__ == "__main__":
     filename = "./log/timestep_60/factor_graph.g2o"
@@ -190,7 +281,14 @@ if __name__ == "__main__":
 
         line = np.array([from_pose.position, to_lmk.position])
 
-        ax.plot(*line.T, 'y')
+        ax.plot(*line.T, 'm', alpha=0.3)
 
+    filename_asso = "./log/timestep_60/association_hypothesis.txt"
+    filename_asso_graph = "./log/timestep_60/association_graph.g2o"
+
+    assos = readHypothesis(filename_asso)
+    assos_fg = readG2o(filename_asso_graph)
+
+    plot_hypothesis(assos, assos_fg)
 
     plt.show()
