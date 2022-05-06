@@ -6,6 +6,7 @@ from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 from typing import Optional
 import scipy.linalg as la
+from scipy.stats import chi2
 
 
 # TODO: Make this adapt to 2D and 3D
@@ -159,7 +160,7 @@ class Association:
     m: str
     meas: np.ndarray
     l: Optional[str] = None
-    H: Optional[np.ndarray] = None
+    S: Optional[np.ndarray] = None
 
     @property
     def m_idx(self):
@@ -168,6 +169,9 @@ class Association:
     @property
     def l_idx(self):
         return int(self.l[1:])
+
+    def associated(self):
+        return self.l is not None
  
 def readHypothesis(filename):
     assos = []
@@ -183,7 +187,7 @@ def readHypothesis(filename):
                     rows, cols = line[6:8]
                     rows = int(rows)
                     cols = int(cols)
-                    asso.H = np.array(line[8:], dtype=float).reshape(rows, cols)
+                    asso.S = np.array(line[8:], dtype=float).reshape(rows, cols)
             else:
                 print(f"Unknown measurement format! Expected '2d' or '3d', got '{line[0]}'")
                 continue
@@ -217,20 +221,17 @@ def ellipse3d(l, S, s = 5.0, n = 200):
 def plot_hypothesis(assos: List[Association], assos_fg: FactorGraph):
     fig3d = plt.figure()  # Square figure
     ax3d = fig3d.add_subplot(111, projection='3d')
-    line = np.zeros((2, 3))
+    sigma = np.sqrt(chi2.ppf(0.9, 3))
     for asso in assos:
-        line[1] = asso.meas
+        line = np.zeros((2, 3))
+        meas = asso.meas
+        line[1] = meas
         ax3d.plot(*line)
-        # x, y, z = ellipse3d()
-
-
-        # fig, ax = plt.subplots(figsize=plt.figaspect(1))
-        # for circ in circs:
-        #     ax.plot(*circ[:2])
-        # # Plot:
-        # ax3d.plot_surface(x, y, z,  rstride=4, cstride=4, color='b', alpha=0.2)
-        # for k, circ in enumerate(circs):
-        #     ax3d.plot(*circ, lw=2, label=f'line {k}')
+        if asso.associated():
+            l = fg.find_lmk(asso.l_idx).position
+            S = asso.S
+            x, y, z = ellipse3d(meas, S, sigma)
+            ax3d.plot_surface(x, y, z,  rstride=4, cstride=4, color='b', alpha=0.2)
 
 
 if __name__ == "__main__":

@@ -128,20 +128,34 @@ void save_hypothesis(const da::hypothesis::Hypothesis& hyp, const gtsam::Nonline
 
     std::string hypothesis_filename = path + "/association_hypothesis.txt";
     std::ofstream f(hypothesis_filename);
+    
+    // Set up for saving associations
+    int num_assos = hyp.num_associations();
+    gtsam::JointMarginal joint_marginal;
+    gtsam::Key x_key;
+    if (num_assos > 0) {
+        auto poses = hyp_estimates.filter(gtsam::Symbol::ChrTest('x'));
+        int last_pose = poses.size() - 1; // Assuming first pose is 0
+        x_key = X(last_pose);
+        gtsam::KeyVector keys = hyp.associated_landmarks();
+        keys.push_back(x_key);
+        joint_marginal = gtsam::Marginals(hyp_graph, hyp_estimates).jointMarginalCovariance(keys);
+    }
     for (const auto& asso : hyp.associations()) {
+        slam::Measurement<POINT> meas = measurements[asso->measurement];
         f << POINT::RowsAtCompileTime << "d ";
-        f << 'z' << measurements[asso->measurement].idx << ' ' << measurements[asso->measurement].measurement.transpose();
+        f << 'z' << measurements[asso->measurement].idx << ' ' << meas.measurement.transpose();
         if (asso->associated()) {
             f << ' ' << gtsam::Symbol(*asso->landmark);
             f << ' ';
-            size_t rows = asso->Hx.rows();
-            size_t cols = asso->Hx.cols() + asso->Hl.cols();
-            f << rows << ' ' << cols << ' ';
-            gtsam::Matrix H(rows, cols);
-            H << asso->Hx, asso->Hl;
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < cols; j++) { 
-                    f << H(i,j) << ' ';
+
+            // Compute the innovation covariance
+            Eigen::MatrixXd S = da::innovation_covariance(x_key, joint_marginal, *asso, meas);
+
+            f << S.rows() << ' ' << S.cols() << ' ';
+            for (int i = 0; i < S.rows(); i++) {
+                for (int j = 0; j < S.cols(); j++) { 
+                    f << S(i,j) << ' ';
                 }
             }
         }
