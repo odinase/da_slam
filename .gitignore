@@ -8,5 +8,6 @@ slam_g2o_file_visualization
 !/tests/test_association_visualization.cpp
 !/tests/test_read_ground_truth_assos.cpp
 /logs
+/log
 *.txt
 !CMakeLists.txt
