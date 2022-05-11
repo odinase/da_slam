@@ -228,7 +228,6 @@ def plot_hypothesis(assos: List[Association], assos_fg: FactorGraph):
         line[1] = meas
         ax3d.plot(*line)
         if asso.associated():
-            l = fg.find_lmk(asso.l_idx).position
             S = asso.S
             x, y, z = ellipse3d(meas, S, sigma)
             ax3d.plot_surface(x, y, z,  rstride=4, cstride=4, color='b', alpha=0.2)
