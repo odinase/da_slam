@@ -26,3 +26,5 @@ optimization_method: 1
 marginals_factorization: 1
 
 with_ground_truth: true
+
+break_at_misassociation: true

@@ -7,6 +7,7 @@
 #include <eigen3/Eigen/Cholesky>
 #include <memory>
 #include <unordered_set>
+#include "slam/types.h"
 #include <gtsam/base/Matrix.h>
 #include <gtsam/inference/Key.h>
 #include <gtsam/nonlinear/Marginals.h>
@@ -47,7 +48,11 @@ namespace da
                 bool same_measurement = measurement == rhs.measurement;
                 bool both_unassociated = !associated() && !rhs.associated();
                 bool both_associated = associated() && rhs.associated();
-                return same_measurement && (both_unassociated || both_associated);
+                bool associated_to_same_landmark = true;
+                if (both_associated) {
+                    associated_to_same_landmark = *landmark == *rhs.landmark;
+                }
+                return same_measurement && (both_unassociated || both_associated) && associated_to_same_landmark;
             }
 
             bool operator<=(const Association &rhs) const {
@@ -104,6 +109,9 @@ namespace da
             {
                 return assos_;
             }
+
+            // Compute map that, for each measurement, check whether a hypothesis is equal to another
+            std::map<int, bool> compare(const Hypothesis& other) const;
 
             gtsam::FastVector<std::pair<int, gtsam::Key>> measurement_landmark_associations() const;
             void fill_with_unassociated_measurements(int tot_num_measurements);
