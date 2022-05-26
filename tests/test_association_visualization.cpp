@@ -39,6 +39,8 @@ using namespace std;
 using namespace gtsam;
 using namespace Eigen;
 
+namespace viz = visualization;
+
 namespace gtsam
 {
     using PoseToPointFactor2 = PoseToPointFactor<Pose2, Point2>;

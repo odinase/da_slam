@@ -263,6 +263,28 @@ endif()
 
 set_target_properties(test_hungarian_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
 
+add_executable(test_hypothesis_compare
+  tests/test_hypothesis_compare.cpp
+)
+
+target_link_libraries(test_hypothesis_compare
+  # Eigen3::Eigen
+  # gtsam
+  # gtsam_unstable
+  data_association
+  hypothesis
+)
+  
+# if(glog_FOUND)
+# target_link_libraries(test_hungarian_method
+#   glog::glog
+# )
+# endif()
+
+set_target_properties(test_hypothesis_compare PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
+
+
+
 if(VISUALIZATION_AVAILABLE)
 add_executable(test_association_visualization
   tests/test_association_visualization.cpp
