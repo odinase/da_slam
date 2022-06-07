@@ -23,6 +23,7 @@
 #endif
 
 #include "visualization/visualization.h"
+#include "visualization/drawing.h"
 #include "visualization/colors.h"
 #include "data_association/DataAssociation.h"
 #include "slam/slam.h"
@@ -34,10 +35,6 @@
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
 
-static void glfw_error_callback(int error, const char *description)
-{
-    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
-}
 
 Eigen::MatrixXd ellipse2d(const Eigen::Vector2d &mu, const Eigen::Matrix2d &P, const double s = 1.0, const int n = 200)
 {
@@ -119,37 +116,6 @@ namespace ImGui
 
 namespace visualization
 {
-    static GLFWwindow *WINDOW = NULL;
-
-    void new_frame()
-    {
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        glfwPollEvents();
-
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-    }
-
-    void render()
-    {
-        using namespace colors;
-        // Rendering
-        ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(WINDOW, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(CLEAR.x * CLEAR.w, CLEAR.y * CLEAR.w, CLEAR.z * CLEAR.w, CLEAR.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        glfwSwapBuffers(WINDOW);
-    }
 
     void progress_bar(int curr_timestep, int tot_timesteps)
     {
@@ -162,115 +128,6 @@ namespace visualization
         ImGui::Text("Processed %d / %d timesteps, %.2f%% complete", curr_timestep, tot_timesteps, progress * 100.0);
     }
 
-    // void config_table(const config::Config &conf)
-    // {
-    //     // std::stringstream ss;
-    //     // std::string buffer;
-    //     // if (ImGui::BeginTable("config table", 2))
-    //     // {
-    //     //     ImGui::TableNextRow();
-    //     //     ImGui::TableNextColumn();
-
-    //     //     ImGui::TextWrapped("Association method");
-    //     //     ImGui::TableNextColumn();
-    //     //     ss.str("");
-    //     //     ss << conf.association_method;
-    //     //     buffer = ss.str();
-    //     //     ImGui::TextWrapped(buffer.c_str());
-
-    //     //     ImGui::TableNextRow();
-    //     //     ImGui::TableNextColumn();
-
-    //     //     ImGui::TextWrapped("Optimization method");
-    //     //     ImGui::TableNextColumn();
-    //     //     ss.str("");
-    //     //     ss << conf.optimization_method;
-    //     //     buffer = ss.str();
-    //     //     ImGui::TextWrapped(buffer.c_str());
-
-    //     //     ImGui::TableNextRow();
-    //     //     ImGui::TableNextColumn();
-
-    //     //     ImGui::TextWrapped("Marginals factorization");
-    //     //     ImGui::TableNextColumn();
-    //     //     ImGui::TextWrapped((conf.marginals_factorization == gtsam::Marginals::CHOLESKY ? "Cholesky" : "QR"));
-
-    //     //     ImGui::EndTable();
-    //     // }
-    // }
-
-    bool running()
-    {
-        return WINDOW != NULL && !glfwWindowShouldClose(WINDOW);
-    }
-
-    bool init()
-    {
-        // Setup window
-        glfwSetErrorCallback(glfw_error_callback);
-        if (!glfwInit())
-            return false;
-
-            // Decide GL+GLSL versions
-#if defined(IMGUI_IMPL_OPENGL_ES2)
-        // GL ES 2.0 + GLSL 100
-        const char *glsl_version = "#version 100";
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-#elif defined(__APPLE__)
-        // GL 3.2 + GLSL 150
-        const char *glsl_version = "#version 150";
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);           // Required on Mac
-#else
-        // GL 3.0 + GLSL 130
-        const char *glsl_version = "#version 130";
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-        // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
-        // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
-#endif
-
-        // Create window with graphics context
-        WINDOW = glfwCreateWindow(1280, 720, "Data Association SLAM - Visualization", NULL, NULL);
-        if (WINDOW == NULL)
-            return false;
-        glfwMakeContextCurrent(WINDOW);
-        glfwSwapInterval(1); // Enable vsync
-
-        // Setup Dear ImGui context
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImPlot::CreateContext();
-
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-        // io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-        // Setup Dear ImGui style
-        ImGui::StyleColorsDark();
-        // ImGui::StyleColorsClassic();
-
-        // Setup Platform/Renderer backends
-        ImGui_ImplGlfw_InitForOpenGL(WINDOW, true);
-        ImGui_ImplOpenGL3_Init(glsl_version);
-
-        return true;
-    }
-
-    void shutdown()
-    {
-        // Cleanup
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImPlot::DestroyContext();
-        ImGui::DestroyContext();
-
-        glfwDestroyWindow(WINDOW);
-        glfwTerminate();
-    }
 
     void draw_factor_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Values &estimates, int latest_time_step)
     {

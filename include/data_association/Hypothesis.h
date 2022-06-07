@@ -3,12 +3,12 @@
 
 #include <vector>
 #include <optional>
-#include <eigen3/Eigen/Core>
-#include <eigen3/Eigen/Cholesky>
+#include <Eigen/Cholesky>
+#include <Eigen/Core>
 #include <memory>
 #include <unordered_set>
-#include <gtsam/base/Matrix.h>
 #include <gtsam/inference/Key.h>
+#include <gtsam/base/Matrix.h>
 #include <gtsam/nonlinear/Marginals.h>
 // #include "MarginalMocks.h"
 
