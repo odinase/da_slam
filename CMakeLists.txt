@@ -6,7 +6,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 
 find_package(GTSAM REQUIRED) # Uses installed package
-find_package(OpenCV 3 REQUIRED)
+find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 

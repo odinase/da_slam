@@ -218,11 +218,11 @@ std::pair<NonlinearFactorGraph::shared_ptr, Values::shared_ptr> readG2oOdomOnly(
   if (is3D) {
     auto priorModel = noiseModel::Diagonal::Variances(
         (Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished());
-    odom_graph->addPrior(0, Pose3(), priorModel);
+    odom_graph->addPrior(0, initial->at<Pose3>(0), priorModel);
   } else {
     auto priorModel =  //
         noiseModel::Diagonal::Variances(Vector3(1e-6, 1e-6, 1e-8));
-    odom_graph->addPrior(0, Pose2(), priorModel);
+    odom_graph->addPrior(0, initial->at<Pose2>(0), priorModel);
   }
   std::cout << "Adding prior on pose 0." << std::endl;
 
@@ -326,6 +326,67 @@ bool isPutativeAssociation(const Key key1, const Key key2, const Vector diff,
   return mahDist(0, 0) < 9.0;  // ~chi2inv(0.99,2)
 }
 
+void writeG2oLdmkEdges(const NonlinearFactorGraph &graph, const Values &estimate,
+                       const std::string &filename, const std::string &g2ofilepath) {
+  auto g2opath = boost::filesystem::path(g2ofilepath);
+  auto fname = boost::filesystem::path(filename);
+  auto savepath = g2opath.parent_path() / fname;
+  gtsam::writeG2o(graph, estimate, savepath.c_str());
+  std::fstream stream(savepath.c_str(), std::fstream::app);
+  auto index = [](gtsam::Key key) {return Symbol(key).index();};
+  for (const auto &factor_ : graph) {
+    // 2D factor
+    auto lmfactor2d = boost::dynamic_pointer_cast<PoseToPointFactor<Pose2,Point2>>(factor_);
+    if (lmfactor2d) {
+      SharedNoiseModel model = lmfactor2d->noiseModel();
+      auto gaussModel = boost::dynamic_pointer_cast<noiseModel::Gaussian>(model);
+      if (!gaussModel) {
+        model->print("model\n");
+        throw std::invalid_argument("writeG2oLdmkEdges: invalid noise model!");
+        // std::cout << "Landmark edges not written and skipped" << std::endl;
+        // break;
+      } else {
+        Matrix2 Info = gaussModel->R().transpose() * gaussModel->R(); // or just information()
+        Point2 measured2d = lmfactor2d->measured();
+        stream << "EDGE_SE2_XY " << index(lmfactor2d->key1()) << " "
+               << index(lmfactor2d->key2()) << " " << std::fixed << std::setprecision(6)
+               << measured2d.x() << " " << measured2d.y();
+        for (size_t i = 0; i < 2; i++) {
+          for (size_t j = i; j < 2; j++) {
+            stream << " " << std::fixed << std::setprecision(6) << Info(i, j);
+          }
+        }
+        stream << std::endl;
+      }
+    }
+    // 3D factor
+    auto lmfactor3d = boost::dynamic_pointer_cast<PoseToPointFactor<Pose3,Point3>>(factor_);
+    if (lmfactor3d) {
+      SharedNoiseModel model = lmfactor3d->noiseModel();
+      auto gaussModel = boost::dynamic_pointer_cast<noiseModel::Gaussian>(model);
+      if (!gaussModel) {
+        model->print("model\n");
+        throw std::invalid_argument("writeG2oLdmkEdges: invalid noise model!");
+        // std::cout << "Landmark edges not written and skipped" << std::endl;
+        // break;
+      } else {
+        Matrix3 Info = gaussModel->R().transpose() * gaussModel->R();
+        Point3 measured3d = lmfactor3d->measured();
+        stream << "EDGE_SE3_XYZ " << index(lmfactor3d->key1()) << " "
+               << index(lmfactor3d->key2()) << " " << std::fixed << std::setprecision(9)
+               << measured3d.x() << " " << measured3d.y() << " " << measured3d.z();
+        for (size_t i = 0; i < 3; i++) {
+          for (size_t j = i; j < 3; j++) {
+            stream << " " << std::fixed << std::setprecision(9) << Info(i, j);
+          }
+        }
+        stream << std::endl;
+      }
+    }
+  }
+  stream.close();
+}
+
 }  // namespace gtsam
 
 
@@ -402,4 +463,3 @@ std::map<uint64_t, gtsam::Key> measurement_landmarks_associations(
 
     return meas_lmk_assos;
 }
-

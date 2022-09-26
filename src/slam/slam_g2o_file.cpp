@@ -68,7 +68,7 @@ int main(int argc, char **argv)
         std::cout << "output_file: " << output_file << std::endl;
     }
 
-    config::Config conf("/home/mrg/prog/C++/da-slam/config/config.yaml");
+    config::Config conf("/home/yihao/Research/MultiHypothesisParamEst/RefCode/da-slam/config/config.yaml");
 
     slam::OptimizationMethod optimization_method = conf.optimization_method;
     gtsam::Marginals::Factorization marginals_factorization = conf.marginals_factorization;
@@ -152,6 +152,9 @@ int main(int argc, char **argv)
             Values::shared_ptr initial2;
             boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
             writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
+            string viz_filename = string("viz_ml")+string(".g2o");
+            gtsam::NonlinearFactorGraph curr_graph = slam_sys.getGraph();
+            writeG2oLdmkEdges(curr_graph, slam_sys.currentEstimates(), viz_filename, output_file);
             ofstream os("/home/odinase/prog/C++/da-slam/graph.txt");
             slam_sys.getGraph().saveGraph(os, slam_sys.currentEstimates());
             os.close();
@@ -206,6 +209,9 @@ int main(int argc, char **argv)
             Values::shared_ptr initial2;
             boost::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
             writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
+            string viz_filename = string("viz_ml")+string(".g2o");
+            gtsam::NonlinearFactorGraph curr_graph = slam_sys.getGraph();
+            writeG2oLdmkEdges(curr_graph, slam_sys.currentEstimates(), viz_filename, output_file);
             ofstream os("/home/odinase/prog/C++/da-slam/graph.txt");
             slam_sys.getGraph().saveGraph(os, slam_sys.currentEstimates());
             os.close();
