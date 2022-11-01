@@ -91,6 +91,7 @@ namespace da {
     return assigned_landmarks;
   }
 
+
 using namespace std;
 
 void assignmentoptimal(int *assignment, double *cost, const double *distMatrix, int nOfRows, int nOfColumns);

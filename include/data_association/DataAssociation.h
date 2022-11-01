@@ -9,6 +9,10 @@
 #include <iostream>
 #include <cmath>
 #include <utility>
+#include "visualization/visualization.h"
+#include "gtsam/nonlinear/Marginals.h"
+#include "imgui.h"
+#include "implot.h"
 #include <functional>
 #include <memory>
 #include <optional>
@@ -239,6 +243,49 @@ namespace da
     Eigen::MatrixXd S = H * P * H.transpose() + R;
 
     return {innovation, S};
+  }
+
+  template <class POINT>
+  Eigen::Matrix<double, POINT::RowsAtCompileTime, POINT::RowsAtCompileTime> innovation_covariance(
+      const Eigen::MatrixXd &P, const Eigen::MatrixXd &H, const slam::Measurement<POINT> meas)
+  {
+    Eigen::MatrixXd R = meas.noise->sigmas().array().square().matrix().asDiagonal();
+    Eigen::Matrix<double, POINT::RowsAtCompileTime, POINT::RowsAtCompileTime> S = H * P * H.transpose() + R;
+
+    return S;
+  }
+
+  template <class POINT>
+  Eigen::Matrix<double, POINT::RowsAtCompileTime, POINT::RowsAtCompileTime> innovation_covariance(
+      gtsam::Key x_key,
+      const gtsam::JointMarginal &joint_marginal,
+      const hypothesis::Association &asso,
+      const slam::Measurement<POINT> &meas)
+  {
+    // Get measurement Jacobian
+    size_t rows = asso.Hx.rows();
+    size_t cols = asso.Hx.cols() + asso.Hl.cols();
+    gtsam::Matrix H(rows, cols);
+    H << asso.Hx, asso.Hl;
+
+    // Get joint state covariance
+    gtsam::Key lmk_key = *asso.landmark;
+    Eigen::MatrixXd Pxx = joint_marginal(x_key, x_key);
+    Eigen::MatrixXd Pll = joint_marginal(lmk_key, lmk_key);
+    Eigen::MatrixXd Pxl = joint_marginal(x_key, lmk_key);
+    const auto &Plx = Pxl.transpose();
+
+    rows = Pxx.rows() + Pll.rows();
+    cols = rows;
+
+    Eigen::MatrixXd P(rows, cols);
+    P << Pxx, Pxl,
+        Plx, Pll;
+
+    Eigen::MatrixXd R = meas.noise->sigmas().array().square().matrix().asDiagonal();
+    Eigen::Matrix<double, POINT::RowsAtCompileTime, POINT::RowsAtCompileTime> S = H * P * H.transpose() + R;
+
+    return S;
   }
 
   double chi2inv(double p, unsigned int dim);

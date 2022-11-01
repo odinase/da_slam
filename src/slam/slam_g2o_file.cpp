@@ -68,7 +68,7 @@ int main(int argc, char **argv)
         std::cout << "output_file: " << output_file << std::endl;
     }
 
-    config::Config conf("/home/yihao/Research/MultiHypothesisParamEst/RefCode/da-slam/config/config.yaml");
+    config::Config conf("/home/odinase/prog/cpp/da-slam/config/config.yaml");
 
     slam::OptimizationMethod optimization_method = conf.optimization_method;
     gtsam::Marginals::Factorization marginals_factorization = conf.marginals_factorization;

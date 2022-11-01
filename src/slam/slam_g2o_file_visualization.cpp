@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <string>
 #include <sstream>
+#include <filesystem>
 
 #ifdef GLOG_AVAILABLE
 #include <glog/logging.h>
@@ -24,6 +25,7 @@
 #include "data_association/gt/KnownDataAssociation.h"
 #include "data_association/DataAssociation.h"
 #include "visualization/visualization.h"
+#include "visualization/drawing.h"
 #include "imgui.h"
 #include "implot.h"
 #include "config/config.h"
@@ -114,8 +116,65 @@ bool connected_graph(const gtsam::NonlinearFactorGraph &graph, const gtsam::Valu
     return true;
 }
 
-// template<class POSE, class POINT>
-// void run_simulation(slam::SLAM<POSE, POINT> slam_sys, const std::vector<slam::Timestep<POSE, POINT>>& timesteps, )
+
+// Unnecessary?
+void save_factor_graph(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& estimates, const std::string& path) {
+    std::string filename = path + "/factor_graph.g2o";
+    writeG2o(graph, estimates, filename);
+    writeG2o_with_landmarks(graph, estimates, filename);
+}
+
+template<class POINT> 
+void save_hypothesis(const da::hypothesis::Hypothesis& hyp, const gtsam::NonlinearFactorGraph& hyp_graph, const gtsam::Values& hyp_estimates, const slam::Measurements<POINT>& measurements, const std::string& path) {
+    std::string graph_filename = path + "/association_graph.g2o";
+    writeG2o(hyp_graph, hyp_estimates, graph_filename);
+
+    std::string hypothesis_filename = path + "/association_hypothesis.txt";
+    std::ofstream f(hypothesis_filename);
+    
+    // Set up for saving associations
+    int num_assos = hyp.num_associations();
+    gtsam::JointMarginal joint_marginal;
+    gtsam::Key x_key;
+    if (num_assos > 0) {
+        auto poses = hyp_estimates.filter(gtsam::Symbol::ChrTest('x'));
+        int last_pose = poses.size() - 1; // Assuming first pose is 0
+        x_key = X(last_pose);
+        gtsam::KeyVector keys = hyp.associated_landmarks();
+        keys.push_back(x_key);
+        joint_marginal = gtsam::Marginals(hyp_graph, hyp_estimates).jointMarginalCovariance(keys);
+    }
+    for (const auto& asso : hyp.associations()) {
+        slam::Measurement<POINT> meas = measurements[asso->measurement];
+        f << POINT::RowsAtCompileTime << "d ";
+        f << 'z' << measurements[asso->measurement].idx << ' ' << meas.measurement.transpose();
+        if (asso->associated()) {
+            f << ' ' << gtsam::Symbol(*asso->landmark);
+            f << ' ';
+
+            // Compute the innovation covariance
+            Eigen::MatrixXd S = da::innovation_covariance(x_key, joint_marginal, *asso, meas);
+
+            f << S.rows() << ' ' << S.cols() << ' ';
+            for (int i = 0; i < S.rows(); i++) {
+                for (int j = 0; j < S.cols(); j++) { 
+                    f << S(i,j) << ' ';
+                }
+            }
+        }
+        f << '\n';
+    }
+}
+
+std::string timestep_log_path(char** argv, int step) {
+    std::filesystem::path p = ::filesystem::weakly_canonical(argv[0]).parent_path();
+    std::stringstream ss;
+    ss << "/log/timestep_" << step;
+    p += std::filesystem::path(ss.str());
+    std::filesystem::create_directories(p);
+    return p.string();
+}
+
 
 int main(int argc, char **argv)
 {
@@ -196,7 +255,7 @@ int main(int argc, char **argv)
     bool early_stop = false;
     bool next_timestep = true;
 
-    config::Config conf("/home/mrg/prog/C++/da-slam/config/config.yaml");
+    config::Config conf("/home/odinase/prog/cpp/da-slam/config/config.yaml");
 
     bool enable_stepping = conf.enable_stepping;
     bool draw_factor_graph = conf.draw_factor_graph;
@@ -221,6 +280,12 @@ int main(int argc, char **argv)
     bool did_association = false;
     bool proceed_to_next_asso_timestep = !stop_at_association_timestep;
     bool draw_association_hypothesis = conf.draw_association_hypothesis;
+    bool do_save_factor_graph = false;
+    bool do_save_hypothesis = false;
+    bool break_at_misassociation = conf.break_at_misassociation;
+    bool misassociation_detected = false;
+    bool continue_after_misdetection_break = true;
+    std::map<int, bool> correct_associations;
 
     std::cout << "Using association method " << conf.association_method << "\n";
     da::AssociationMethod association_method = conf.association_method;
@@ -355,6 +420,9 @@ int main(int argc, char **argv)
                         ImGui::TextWrapped("Factor graph window (how many latest timesteps to draw)");
                     }
                 }
+                if (draw_factor_graph) {
+                    do_save_factor_graph = ImGui::Button("Save factor graph and estimates to file");
+                }
                 ImGui::Checkbox("Autofit plot", &autofit);
                 ImGui::Checkbox("Draw association hypotheses", &draw_association_hypothesis);
                 if (draw_association_hypothesis)
@@ -365,7 +433,21 @@ int main(int argc, char **argv)
                         ImGui::SameLine();
                         proceed_to_next_asso_timestep = ImGui::Button("Proceed to next association timestep");
                     }
+                    do_save_hypothesis = ImGui::Button("Save association hypothesis to file");
                 }
+
+                // Can't break at misdetections if we don't have a ground truth to compare with
+                if (with_ground_truth) {
+                    ImGui::Checkbox("Break at misdetection", &break_at_misassociation);
+                    if (!continue_after_misdetection_break) {
+                        ImGui::SameLine();
+                        continue_after_misdetection_break = ImGui::Button("Continue");
+                        if (continue_after_misdetection_break) {
+                            correct_associations.clear();
+                        }
+                    }
+                }
+
                 ImGui::End(); // Menu
 
                 if (enable_stepping && next_timestep || stop_at_association_timestep && proceed_to_next_asso_timestep)
@@ -373,7 +455,10 @@ int main(int argc, char **argv)
                     step_to_increment_to = step + 1;
                 }
 
-                if (next_timestep && (!enable_step_limit || step < step_to_increment_to) && (!draw_association_hypothesis || proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)))
+                if (next_timestep 
+                && (!enable_step_limit || step < step_to_increment_to) 
+                && (!draw_association_hypothesis || proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)) 
+                && continue_after_misdetection_break)
                 {
                     const slam::Timestep3D &timestep = timesteps[step];
 
@@ -383,6 +468,11 @@ int main(int argc, char **argv)
                     if (with_ground_truth)
                     {
                         slam_sys_gt.processTimestep(timestep);
+                        if (break_at_misassociation) {
+                            correct_associations = slam_sys.latestHypothesis().compare(slam_sys_gt.latestHypothesis());
+                            misassociation_detected = std::any_of(correct_associations.begin(), correct_associations.end(), [](const auto& elem) { return !elem.second; });
+                            continue_after_misdetection_break = false;
+                        }
                     }
 
                     // If we received measurements, we must have done data association
@@ -435,6 +525,11 @@ int main(int argc, char **argv)
                         ImPlot::EndPlot();
                     }
                     ImGui::End(); // Factor graph
+                }
+
+                if (do_save_factor_graph) {
+                    std::string path = timestep_log_path(argv, step);
+                    save_factor_graph(slam_sys.getGraph(), slam_sys.currentEstimates(), path);
                 }
 
                 if (draw_association_hypothesis)
@@ -503,6 +598,26 @@ int main(int argc, char **argv)
                                 lmk_to_draw_covar);
                         }
                         ImPlot::EndPlot();
+                    }
+                    ImGui::End();
+                }
+
+                if (do_save_hypothesis) {
+                    std::string path = timestep_log_path(argv, step);
+                    save_hypothesis(slam_sys.latestHypothesis(), slam_sys.hypothesisGraph(), slam_sys.hypothesisEstimates(), timesteps[step - 1].measurements, path);
+                }
+                if (misassociation_detected) {
+                    const auto& assos = slam_sys.latestHypothesis().associations();
+                    const auto& assos_gt = slam_sys_gt.latestHypothesis().associations();
+
+                    ImGui::Begin("Misassociation detected!");
+                    for (const auto&[m, correct_asso] : correct_associations) {
+                        if (!correct_asso) {
+                            uint64_t lmk    = gtsam::symbolIndex(*assos[m]->landmark);
+                            uint64_t lmk_gt = gtsam::symbolIndex(*assos_gt[m]->landmark);
+                            uint64_t m_idx = timesteps[step].measurements[m].idx;
+                            ImGui::Text("Measurement z%lu associated with landmark l%lu, should be l%lu", m_idx, lmk, lmk_gt);
+                        }
                     }
                     ImGui::End();
                 }

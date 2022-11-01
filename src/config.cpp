@@ -106,6 +106,8 @@ namespace config
 
         yaml["stop_at_association_timestep"] >> stop_at_association_timestep;
         yaml["draw_association_hypothesis"] >> draw_association_hypothesis;
+
+        yaml["break_at_misassociation"] >> break_at_misassociation;
     }
 
 } // namespace config

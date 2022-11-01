@@ -3,17 +3,37 @@ project(da-slam)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
+# set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -target x86_64-apple-macos12.4")
 
 
 find_package(GTSAM REQUIRED) # Uses installed package
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -target x86_64-apple-darwin20.3.0")
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -ggdb")
+
 
 find_package(glfw3)
+
+SET(VISUALIZATION_BACKEND "OPENGL" CACHE STRING "Visualization backend to use")
+
+if (VISUALIZATION_BACKEND STREQUAL "OPENGL")
+
+message("Using visualization backend OpenGL")
 set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL 3)
+set(VISUALIZATION_BACKEND_OPENGL TRUE)
+set(VISUALIZATION_BACKEND_VULKAN FALSE)
 
+elseif(VISUALIZATION_BACKEND STREQUAL "VULKAN")
+message("Using visualization backend Vulkan")
+
+find_package(Vulkan REQUIRED)
+set(VISUALIZATION_BACKEND_OPENGL FALSE)
+set(VISUALIZATION_BACKEND_VULKAN TRUE)
+
+endif()
 
 find_package (glog 0.6.0)
 
@@ -24,19 +44,31 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
 )
 
-if(OpenGL_FOUND AND glfw3_FOUND)
+if(VISUALIZATION_BACKEND_OPENGL)
+set(VIZ_FOUND OpenGL_FOUND)
+elseif(VISUALIZATION_BACKEND_VULKAN)
+set(VIZ_FOUND Vulkan_FOUND)
+endif()
+
+if(VIZ_FOUND AND glfw3_FOUND)
 set(VISUALIZATION_AVAILABLE TRUE)
 else()
 set(VISUALIZATION_AVAILABLE FALSE)
 endif()
+
 
 if(VISUALIZATION_AVAILABLE)
 include_directories(
   3rdparty/imgui
   3rdparty/implot
   3rdparty/imgui/backends
-  ${OPENGL_INCLUDE_DIRS}
 )
+
+if (VISUALIZATION_BACKEND_OPENGL)
+include_directories(
+  ${OPENGL_INCLUDE_DIRS} 
+)
+endif()
 endif()
 
 if (glog_FOUND)
@@ -95,6 +127,7 @@ endif()
 
 if(VISUALIZATION_AVAILABLE)
 message("VISUALIZATION_AVAILABLE = YES")
+message("VISUALIZATION BACKEND = ${VISUALIZATION_BACKEND}")
 else()
 message("VISUALIZATION_AVAILABLE = NO")
 endif()
@@ -108,6 +141,7 @@ add_library(config
 
 target_link_libraries(config
   ${OpenCV_LIBS}
+  gtsam
 )
 
 add_library(hypothesis
@@ -125,14 +159,36 @@ add_library(data_association
 
 target_link_libraries(data_association
   Eigen3::Eigen
+  hypothesis
+  gtsam
 )
 
 if(VISUALIZATION_AVAILABLE)
+if(VISUALIZATION_BACKEND_OPENGL)
 add_library(imgui_backend
     3rdparty/imgui/backends/imgui_impl_glfw.cpp
     3rdparty/imgui/backends/imgui_impl_opengl3.cpp
 )
+elseif(VISUALIZATION_BACKEND_VULKAN)
+add_library(imgui_backend
+    3rdparty/imgui/backends/imgui_impl_glfw.cpp
+    3rdparty/imgui/backends/imgui_impl_vulkan.cpp
+)
+endif()
 
+target_link_libraries(imgui_backend
+    glfw
+)
+if (VISUALIZATION_BACKEND_OPENGL)
+target_link_libraries(imgui_backend
+  ${OPENGL_LIBRARIES}
+)
+elseif(VISUALIZATION_BACKEND_VULKAN)
+target_link_libraries(imgui_backend
+  Vulkan::Vulkan
+)
+endif()
+    
 add_library(imgui
     3rdparty/imgui/imgui_demo.cpp
     3rdparty/imgui/imgui_draw.cpp
@@ -156,22 +212,39 @@ target_link_libraries(implot
     imgui
 )
 
+if (VISUALIZATION_BACKEND_OPENGL)
 add_library(visualization
-    src/visualization.cpp
+    src/drawing.cpp
+    src/visualization_opengl.cpp
 )
+elseif(VISUALIZATION_BACKEND_VULKAN)
+add_library(visualization
+    src/drawing.cpp
+    src/visualization_vulkan.cpp
+)
+endif()
 
 target_link_libraries(visualization
     imgui_backend
     imgui
     implot
-    glfw
-    ${OPENGL_LIBRARIES}
     gtsam_unstable
     gtsam
     Eigen3::Eigen
     config
     data_association
+    glfw
 )
+
+if (VISUALIZATION_BACKEND_OPENGL)
+target_link_libraries(visualization
+  ${OPENGL_LIBRARIES}
+)
+elseif(VISUALIZATION_BACKEND_VULKAN)
+target_link_libraries(visualization
+  Vulkan::Vulkan
+)
+endif()
 
 
 add_executable(slam_g2o_file_visualization
@@ -186,6 +259,11 @@ target_link_libraries(slam_g2o_file_visualization
   data_association
   config
   visualization
+  imgui_backend
+  imgui
+  implot
+  glfw
+  ${OPENGL_LIBRARIES}
 )
 
 if(glog_FOUND)
@@ -263,7 +341,30 @@ endif()
 
 set_target_properties(test_hungarian_method PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
 
+add_executable(test_hypothesis_compare
+  tests/test_hypothesis_compare.cpp
+)
+
+target_link_libraries(test_hypothesis_compare
+  # Eigen3::Eigen
+  # gtsam
+  # gtsam_unstable
+  data_association
+  hypothesis
+)
+  
+# if(glog_FOUND)
+# target_link_libraries(test_hungarian_method
+#   glog::glog
+# )
+# endif()
+
+set_target_properties(test_hypothesis_compare PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
+
+
+
 if(VISUALIZATION_AVAILABLE)
+
 add_executable(test_association_visualization
   tests/test_association_visualization.cpp
 )
@@ -275,36 +376,15 @@ target_link_libraries(test_association_visualization
   data_association
   hypothesis
   visualization
-  )
+)
 
 if(glog_FOUND)
 target_link_libraries(test_association_visualization
-  glog::glog  
+  glog::glog
 )
 endif()
 
 set_target_properties(test_association_visualization PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
 
-
-add_executable(test_read_ground_truth_assos
-  tests/test_read_ground_truth_assos.cpp
-)
-
-target_link_libraries(test_read_ground_truth_assos
-  Eigen3::Eigen
-  gtsam
-  gtsam_unstable
-  data_association
-  hypothesis
-  visualization
-)
-  
-if(glog_FOUND)
-target_link_libraries(test_read_ground_truth_assos
-  glog::glog
-)
-endif()
-
-set_target_properties(test_read_ground_truth_assos PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tests" )
 endif() # VISUALIZATION
 endif() # WITH_TESTS
