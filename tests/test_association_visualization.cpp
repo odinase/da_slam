@@ -1,4 +1,5 @@
 #include "visualization/visualization.h"
+#include "visualization/drawing.h"
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
 #include <cmath>
@@ -75,10 +76,10 @@ int main(int argc, char **argv)
     gtsam::Pose2 x0 = gtsam::Pose2();
     uint64_t pose_idx = 0;
     auto priorModel = //
-        noiseModel::Diagonal::Variances(Vector3(1e-6, 1e-6, 1e-8));
+        noiseModel::Diagonal::Variances(gtsam::Vector3(1e-6, 1e-6, 1e-8));
 
     auto odom_noise = //
-        noiseModel::Diagonal::Sigmas(Vector3(0.05, 0.05, 2.0 * M_PI / 180.0));
+        noiseModel::Diagonal::Sigmas(gtsam::Vector3(0.05, 0.05, 2.0 * M_PI / 180.0));
 
     graph.addPrior(X(pose_idx), x0, priorModel);
     estimates.insert(X(pose_idx), x0);
