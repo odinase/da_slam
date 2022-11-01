@@ -25,6 +25,9 @@
 #include "data_association/gt/KnownDataAssociation.h"
 #include "data_association/DataAssociation.h"
 #include "visualization/visualization.h"
+#include "visualization/drawing.h"
+#include "imgui.h"
+#include "implot.h"
 #include "config/config.h"
 
 using namespace std;
@@ -252,7 +255,7 @@ int main(int argc, char **argv)
     bool early_stop = false;
     bool next_timestep = true;
 
-    config::Config conf("/home/mrg/prog/C++/da-slam/config/config.yaml");
+    config::Config conf("/home/odinase/prog/cpp/da-slam/config/config.yaml");
 
     bool enable_stepping = conf.enable_stepping;
     bool draw_factor_graph = conf.draw_factor_graph;
@@ -279,6 +282,10 @@ int main(int argc, char **argv)
     bool draw_association_hypothesis = conf.draw_association_hypothesis;
     bool do_save_factor_graph = false;
     bool do_save_hypothesis = false;
+    bool break_at_misassociation = conf.break_at_misassociation;
+    bool misassociation_detected = false;
+    bool continue_after_misdetection_break = true;
+    std::map<int, bool> correct_associations;
 
     std::cout << "Using association method " << conf.association_method << "\n";
     da::AssociationMethod association_method = conf.association_method;
@@ -428,6 +435,19 @@ int main(int argc, char **argv)
                     }
                     do_save_hypothesis = ImGui::Button("Save association hypothesis to file");
                 }
+
+                // Can't break at misdetections if we don't have a ground truth to compare with
+                if (with_ground_truth) {
+                    ImGui::Checkbox("Break at misdetection", &break_at_misassociation);
+                    if (!continue_after_misdetection_break) {
+                        ImGui::SameLine();
+                        continue_after_misdetection_break = ImGui::Button("Continue");
+                        if (continue_after_misdetection_break) {
+                            correct_associations.clear();
+                        }
+                    }
+                }
+
                 ImGui::End(); // Menu
 
                 if (enable_stepping && next_timestep || stop_at_association_timestep && proceed_to_next_asso_timestep)
@@ -435,7 +455,10 @@ int main(int argc, char **argv)
                     step_to_increment_to = step + 1;
                 }
 
-                if (next_timestep && (!enable_step_limit || step < step_to_increment_to) && (!draw_association_hypothesis || proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)))
+                if (next_timestep 
+                && (!enable_step_limit || step < step_to_increment_to) 
+                && (!draw_association_hypothesis || proceed_to_next_asso_timestep || !(stop_at_association_timestep && did_association)) 
+                && continue_after_misdetection_break)
                 {
                     const slam::Timestep3D &timestep = timesteps[step];
 
@@ -445,6 +468,11 @@ int main(int argc, char **argv)
                     if (with_ground_truth)
                     {
                         slam_sys_gt.processTimestep(timestep);
+                        if (break_at_misassociation) {
+                            correct_associations = slam_sys.latestHypothesis().compare(slam_sys_gt.latestHypothesis());
+                            misassociation_detected = std::any_of(correct_associations.begin(), correct_associations.end(), [](const auto& elem) { return !elem.second; });
+                            continue_after_misdetection_break = false;
+                        }
                     }
 
                     // If we received measurements, we must have done data association
@@ -577,6 +605,21 @@ int main(int argc, char **argv)
                 if (do_save_hypothesis) {
                     std::string path = timestep_log_path(argv, step);
                     save_hypothesis(slam_sys.latestHypothesis(), slam_sys.hypothesisGraph(), slam_sys.hypothesisEstimates(), timesteps[step - 1].measurements, path);
+                }
+                if (misassociation_detected) {
+                    const auto& assos = slam_sys.latestHypothesis().associations();
+                    const auto& assos_gt = slam_sys_gt.latestHypothesis().associations();
+
+                    ImGui::Begin("Misassociation detected!");
+                    for (const auto&[m, correct_asso] : correct_associations) {
+                        if (!correct_asso) {
+                            uint64_t lmk    = gtsam::symbolIndex(*assos[m]->landmark);
+                            uint64_t lmk_gt = gtsam::symbolIndex(*assos_gt[m]->landmark);
+                            uint64_t m_idx = timesteps[step].measurements[m].idx;
+                            ImGui::Text("Measurement z%lu associated with landmark l%lu, should be l%lu", m_idx, lmk, lmk_gt);
+                        }
+                    }
+                    ImGui::End();
                 }
 
                 viz::render();

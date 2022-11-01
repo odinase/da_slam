@@ -30,6 +30,8 @@ struct Config {
 
     slam::OptimizationMethod optimization_method;
     gtsam::Marginals::Factorization marginals_factorization;
+
+    bool break_at_misassociation;
 };
 
 } // namespace config

@@ -10,13 +10,8 @@
 #include <limits>
 
 #include <chrono>
-
 #include "data_association/DataAssociation.h"
-#include "visualization/visualization.h"
-#include "imgui.h"
-#include "implot.h"
 
-namespace viz = visualization;
 
 namespace da
 {

@@ -137,5 +137,21 @@ namespace hypothesis
         std::sort(assos_.begin(), assos_.end(), [](const auto& lhs, const auto& rhs) {return (*lhs) < (*rhs);});
     }
 
+    // Compute map that, for each measurement, check whether a hypothesis is equal to another
+    std::map<int, bool> Hypothesis::compare(const Hypothesis& other) const {
+        std::map<int, bool> equal_assos;
+        for (const auto& asso : assos_) {
+            int m = asso->measurement;
+            const auto it = std::find_if(other.assos_.begin(), other.assos_.end(), [&](const auto& elem) { return elem->measurement == asso->measurement; });
+            if (it != other.assos_.end()) {
+                equal_assos[m] = *asso == **it;
+            } else {
+                equal_assos[m] = false;
+            }
+        }
+
+        return equal_assos;
+    }
+
 } // namespace hypothesis
 } // namespace da
