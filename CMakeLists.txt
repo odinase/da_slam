@@ -214,10 +214,12 @@ target_link_libraries(implot
 
 if (VISUALIZATION_BACKEND_OPENGL)
 add_library(visualization
+    src/drawing.cpp
     src/visualization_opengl.cpp
 )
 elseif(VISUALIZATION_BACKEND_VULKAN)
 add_library(visualization
+    src/drawing.cpp
     src/visualization_vulkan.cpp
 )
 endif()

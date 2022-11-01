@@ -9,7 +9,7 @@ enable_factor_graph_window: false
 factor_graph_window: 20 
 
 enable_step_limit: true
-step_to_increment_to: 60
+step_to_increment_to: 1
 
 autofit: true
 
