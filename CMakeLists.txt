@@ -3,12 +3,15 @@ project(da-slam)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
 # set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -target x86_64-apple-macos12.4")
 
 
 find_package(GTSAM REQUIRED) # Uses installed package
-find_package(OpenCV REQUIRED)
+find_package(yaml-cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(range-v3 REQUIRED)
 
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -target x86_64-apple-darwin20.3.0")
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -ggdb")
@@ -140,8 +143,9 @@ add_library(config
 )
 
 target_link_libraries(config
-  ${OpenCV_LIBS}
+  yaml-cpp
   gtsam
+  range-v3::range-v3
 )
 
 add_library(hypothesis
@@ -151,6 +155,7 @@ add_library(hypothesis
 target_link_libraries(hypothesis
   Eigen3::Eigen
   gtsam
+  range-v3::range-v3
 )
 
 add_library(data_association
@@ -161,6 +166,7 @@ target_link_libraries(data_association
   Eigen3::Eigen
   hypothesis
   gtsam
+  range-v3::range-v3
 )
 
 if(VISUALIZATION_AVAILABLE)
@@ -178,6 +184,7 @@ endif()
 
 target_link_libraries(imgui_backend
     glfw
+    range-v3::range-v3
 )
 if (VISUALIZATION_BACKEND_OPENGL)
 target_link_libraries(imgui_backend
@@ -186,6 +193,7 @@ target_link_libraries(imgui_backend
 elseif(VISUALIZATION_BACKEND_VULKAN)
 target_link_libraries(imgui_backend
   Vulkan::Vulkan
+  range-v3::range-v3
 )
 endif()
     
@@ -199,6 +207,7 @@ add_library(imgui
 
 target_link_libraries(imgui
     imgui_backend
+    range-v3::range-v3
 )
 
 add_library(implot
@@ -210,6 +219,7 @@ add_library(implot
 target_link_libraries(implot
     imgui_backend
     imgui
+    range-v3::range-v3
 )
 
 if (VISUALIZATION_BACKEND_OPENGL)
@@ -234,6 +244,7 @@ target_link_libraries(visualization
     config
     data_association
     glfw
+    range-v3::range-v3
 )
 
 if (VISUALIZATION_BACKEND_OPENGL)
@@ -264,6 +275,7 @@ target_link_libraries(slam_g2o_file_visualization
   implot
   glfw
   ${OPENGL_LIBRARIES}
+  range-v3::range-v3
 )
 
 if(glog_FOUND)
@@ -286,6 +298,7 @@ target_link_libraries(slam_g2o_file
   hypothesis
   data_association
   config
+  range-v3::range-v3
 )
 
 if(glog_FOUND)

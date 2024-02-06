@@ -1,16 +1,22 @@
 #pragma once
 
-#include <string>
-#include "data_association/DataAssociation.h"
-#include "slam/slam.h"
 #include <gtsam/nonlinear/Marginals.h>
 
-namespace config {
+#include <string>
 
-struct Config {
+#include "data_association/DataAssociation.h"
+#include "slam/slam.h"
+
+namespace config
+{
+
+struct Config
+{
     Config() = default;
     Config(const char* filename);
-    Config(const std::string& filename) : Config(filename.c_str()) {}
+    Config(const std::string& filename) : Config(filename.c_str())
+    {
+    }
 
     bool enable_stepping;
     bool draw_factor_graph;
@@ -34,4 +40,4 @@ struct Config {
     bool break_at_misassociation;
 };
 
-} // namespace config
+}  // namespace config

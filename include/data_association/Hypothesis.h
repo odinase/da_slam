@@ -1,124 +1,141 @@
 #ifndef HYPOTHESIS_H
 #define HYPOTHESIS_H
 
-#include <vector>
-#include <optional>
+#include <gtsam/base/Matrix.h>
+#include <gtsam/inference/Key.h>
+#include <gtsam/nonlinear/Marginals.h>
+
 #include <Eigen/Cholesky>
 #include <Eigen/Core>
 #include <memory>
+#include <optional>
 #include <unordered_set>
+#include <vector>
+
 #include "slam/types.h"
-#include <gtsam/base/Matrix.h>
-#include <gtsam/inference/Key.h>
-#include <gtsam/base/Matrix.h>
-#include <gtsam/nonlinear/Marginals.h>
 // #include "MarginalMocks.h"
 
 namespace da
 {
-    namespace hypothesis
+namespace hypothesis
+{
+
+// Config here between mock-up or GTSAM version.
+using Marginals = gtsam::Marginals;
+using JointMarginal = gtsam::JointMarginal;
+
+struct Association
+{
+    explicit Association(int m);
+    Association(int m, gtsam::Key l, const gtsam::Matrix& Hx, const gtsam::Matrix& Hl, const gtsam::Vector& error);
+    Association(int m, gtsam::Key l);  // For ML
+    typedef std::shared_ptr<Association> shared_ptr;
+    int measurement;
+    std::optional<gtsam::Key> landmark;
+    gtsam::Matrix Hx;
+    gtsam::Matrix Hl;
+    bool associated() const
     {
+        return bool(landmark);
+    }
+    // double nis(const Eigen::VectorXd &z, const Eigen::VectorXd &zbar, const Marginals &S);
+    gtsam::Vector error;
 
-        // Config here between mock-up or GTSAM version.
-        using Marginals = gtsam::Marginals;
-        using JointMarginal = gtsam::JointMarginal;
+    bool operator<(const Association& rhs) const
+    {
+        return measurement < rhs.measurement;
+    }
 
-        struct Association
-        {
-            explicit Association(int m);
-            Association(int m, gtsam::Key l, const gtsam::Matrix &Hx, const gtsam::Matrix &Hl, const gtsam::Vector &error);
-            Association(int m, gtsam::Key l); // For ML
-            typedef std::shared_ptr<Association> shared_ptr;
-            int measurement;
-            std::optional<gtsam::Key> landmark;
-            gtsam::Matrix Hx;
-            gtsam::Matrix Hl;
-            bool associated() const { return bool(landmark); }
-            // double nis(const Eigen::VectorXd &z, const Eigen::VectorXd &zbar, const Marginals &S);
-            gtsam::Vector error;
+    bool operator>(const Association& rhs) const
+    {
+        return measurement > rhs.measurement;
+    }
 
-            bool operator<(const Association &rhs) const {
-                return measurement < rhs.measurement;
-            }
+    bool operator==(const Association& rhs) const
+    {
+        bool same_measurement = measurement == rhs.measurement;
+        bool both_unassociated = !associated() && !rhs.associated();
+        bool both_associated = associated() && rhs.associated();
+        bool associated_to_same_landmark = true;
+        if (both_associated) {
+            associated_to_same_landmark = *landmark == *rhs.landmark;
+        }
+        return same_measurement && (both_unassociated || both_associated) && associated_to_same_landmark;
+    }
 
-            bool operator>(const Association &rhs) const {
-                return measurement > rhs.measurement;
-            }
+    bool operator<=(const Association& rhs) const
+    {
+        return (*this) < rhs || (*this) == rhs;
+    }
 
-            bool operator==(const Association &rhs) const {
-                bool same_measurement = measurement == rhs.measurement;
-                bool both_unassociated = !associated() && !rhs.associated();
-                bool both_associated = associated() && rhs.associated();
-                bool associated_to_same_landmark = true;
-                if (both_associated) {
-                    associated_to_same_landmark = *landmark == *rhs.landmark;
-                }
-                return same_measurement && (both_unassociated || both_associated) && associated_to_same_landmark;
-            }
+    bool operator>=(const Association& rhs) const
+    {
+        return (*this) > rhs || (*this) == rhs;
+    }
+};
 
-            bool operator<=(const Association &rhs) const {
-                return (*this) < rhs || (*this) == rhs;
-            }
+class Hypothesis
+{
+   private:
+    double nis_;
+    gtsam::FastVector<Association::shared_ptr> assos_;
 
-            bool operator>=(const Association &rhs) const {
-                return (*this) > rhs || (*this) == rhs;
-            }
-        };
+   public:
+    typedef std::shared_ptr<Hypothesis> shared_ptr;
 
-        class Hypothesis
-        {
-        private:
-            double nis_;
-            gtsam::FastVector<Association::shared_ptr> assos_;
+    Hypothesis() = default;
+    Hypothesis(const gtsam::FastVector<Association::shared_ptr>& associations, double nis)
+    : assos_(associations), nis_(nis)
+    {
+    }
+    int num_associations() const;
+    int num_measurements() const;
+    void set_nis(double nis)
+    {
+        nis_ = nis;
+    }
+    double get_nis() const
+    {
+        return nis_;
+    }
 
-        public:
+    gtsam::KeyVector associated_landmarks() const;
+    // Needed for min heap
+    bool operator<(const Hypothesis& rhs) const;
 
-            typedef std::shared_ptr<Hypothesis> shared_ptr;
-            
-            Hypothesis() = default;
-            Hypothesis(const gtsam::FastVector<Association::shared_ptr> &associations, double nis) : assos_(associations), nis_(nis) {}
-            int num_associations() const;
-            int num_measurements() const;
-            void set_nis(double nis) { nis_ = nis; }
-            double get_nis() const { return nis_; }
+    // Needed for min heap
+    bool operator>(const Hypothesis& rhs) const;
 
-            gtsam::KeyVector associated_landmarks() const;
-            // Needed for min heap
-            bool operator<(const Hypothesis &rhs) const;
+    // Added for completion of comparision operators
+    bool operator==(const Hypothesis& rhs) const;
 
-            // Needed for min heap
-            bool operator>(const Hypothesis &rhs) const;
+    // Added for completion of comparision operators
+    bool operator<=(const Hypothesis& rhs) const;
 
-            // Added for completion of comparision operators
-            bool operator==(const Hypothesis &rhs) const;
+    // Added for completion of comparision operators
+    bool operator>=(const Hypothesis& rhs) const;
 
-            // Added for completion of comparision operators
-            bool operator<=(const Hypothesis &rhs) const;
+    bool better_than(const Hypothesis& other) const;
 
-            // Added for completion of comparision operators
-            bool operator>=(const Hypothesis &rhs) const;
+    static Hypothesis empty_hypothesis();
 
-            bool better_than(const Hypothesis &other) const;
+    void extend(const Association::shared_ptr& a);
 
-            static Hypothesis empty_hypothesis();
+    Hypothesis extended(const Association::shared_ptr& a) const;
 
-            void extend(const Association::shared_ptr &a);
+    const gtsam::FastVector<Association::shared_ptr>& associations() const
+    {
+        return assos_;
+    }
 
-            Hypothesis extended(const Association::shared_ptr &a) const;
+    // Compute map that, for each measurement, check whether a hypothesis is equal to another
+    std::map<int, bool> compare(const Hypothesis& other) const;
 
-            const gtsam::FastVector<Association::shared_ptr> &associations() const
-            {
-                return assos_;
-            }
+    gtsam::FastVector<std::pair<int, gtsam::Key>> measurement_landmark_associations() const;
+    void fill_with_unassociated_measurements(int tot_num_measurements);
+};
 
-            // Compute map that, for each measurement, check whether a hypothesis is equal to another
-            std::map<int, bool> compare(const Hypothesis& other) const;
+}  // namespace hypothesis
+}  // namespace da
 
-            gtsam::FastVector<std::pair<int, gtsam::Key>> measurement_landmark_associations() const;
-            void fill_with_unassociated_measurements(int tot_num_measurements);
-        };
-
-    } // namespace hypothesis
-} // namespace da
-
-#endif // HYPOTHESIS_H
+#endif  // HYPOTHESIS_H
