@@ -20,10 +20,10 @@ stop_at_association_timestep: false
 association_method: 0
 
 # GN = 0, LM = 1
-optimization_method: 1
+optimization_method: 0
 
 # CHOLESKY = 0, QR = 1
-marginals_factorization: 1
+marginals_factorization: 0
 
 with_ground_truth: true
 

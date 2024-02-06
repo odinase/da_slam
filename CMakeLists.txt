@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 
 find_package(GTSAM REQUIRED) # Uses installed package
+find_package(GTSAM_UNSTABLE REQUIRED) # Uses installed package
 find_package(yaml-cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(range-v3 REQUIRED)
@@ -365,7 +366,7 @@ target_link_libraries(test_hypothesis_compare
   data_association
   hypothesis
 )
-  
+
 # if(glog_FOUND)
 # target_link_libraries(test_hungarian_method
 #   glog::glog
