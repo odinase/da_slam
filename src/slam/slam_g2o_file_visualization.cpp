@@ -29,6 +29,7 @@
 #include "slam/utils_g2o.h"
 #include "visualization/drawing.h"
 #include "visualization/visualization.h"
+#include <filesystem>
 
 using namespace std;
 using namespace gtsam;
@@ -116,7 +117,7 @@ void save_factor_graph(const gtsam::NonlinearFactorGraph& graph, const gtsam::Va
     writeG2o_with_landmarks(graph, estimates, filename);
 }
 
-template <class POSE, class POINT>
+template <class POINT>
 void save_hypothesis(const da::hypothesis::Hypothesis& hyp, const gtsam::NonlinearFactorGraph& hyp_graph,
                      const gtsam::Values& hyp_estimates, const slam::Measurements<POINT>& measurements,
                      const std::string& path)
@@ -132,11 +133,8 @@ void save_hypothesis(const da::hypothesis::Hypothesis& hyp, const gtsam::Nonline
     gtsam::JointMarginal joint_marginal;
     gtsam::Key x_key;
     if (num_assos > 0) {
-        auto poses = hyp_estimates.extract<POSE>(gtsam::Symbol::ChrTest('x')) //
-                     | ranges::to<std::vector<std::pair<gtsam::Key, POSE>>>() //
-                     | ranges::views::values                                                                //
-                     | ranges::actions::sort([](auto&& lhs, auto&& rhs) { return lhs.first < rhs.first; });  //
-        int last_pose = poses.size() - 1;  // Assuming first pose is 0
+        const auto num_poses = gtsam::num_poses(hyp_estimates);
+        int last_pose = num_poses - 1;  // Assuming first pose is 0
         x_key = X(last_pose);
         gtsam::KeyVector keys = hyp.associated_landmarks();
         keys.push_back(x_key);
@@ -247,7 +245,8 @@ int main(int argc, char** argv)
     bool early_stop = false;
     bool next_timestep = true;
 
-    config::Config conf("/home/odinase/prog/cpp/da-slam/config/config.yaml");
+    const auto yaml_path = std::filesystem::current_path() / "config" / "config.yaml";
+    config::Config conf(yaml_path);
 
     bool enable_stepping = conf.enable_stepping;
     bool draw_factor_graph = conf.draw_factor_graph;

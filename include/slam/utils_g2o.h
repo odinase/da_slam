@@ -20,6 +20,7 @@
  * @author Luca Carlone, Yihao Zhang
  */
 
+#include <gtsam/base/Value.h>
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
@@ -34,6 +35,11 @@
 #include <cmath>
 #include <ctime>
 #include <fstream>
+#include <range/v3/action/remove_if.hpp>
+#include <range/v3/action/unique.hpp>
+#include <range/v3/algorithm/count.hpp>
+#include <range/v3/algorithm/count_if.hpp>
+#include <range/v3/all.hpp>
 
 #include "slam/types.h"
 
@@ -175,14 +181,20 @@ std::pair<std::vector<size_t>, std::vector<size_t>> findFactors(
     return std::make_pair(odomFactorIdx, measFactorIdx);
 }
 
+size_t num_poses(const Values& vals) {
+    return ranges::count_if(vals.keySet(), [](auto&& k) { return gtsam::symbolChr(k) == 'x'; });
+}
+
+KeyVector findLmKeys(const Values& initial)
+{
+    return initial.keys() //
+    | ranges::actions::remove_if([](auto&& k) { return gtsam::symbolChr(k) != 'l'; } ) //
+    | ranges::actions::unique;
+}
+
 KeyVector findLmKeys(const Values::shared_ptr& initial)
 {
-    KeyVector ldmk_keys;
-    for (const auto key_value : initial->filter(Symbol::ChrTest('l'))) {
-        ldmk_keys.push_back(key_value.key);
-        // cout << DefaultKeyFormatter(key_value.key) << std::endl;
-    }
-    return ldmk_keys;
+    return findLmKeys(*initial);
 }
 
 KeyVector findPoseKeys(const Values::shared_ptr& initial, const KeyVector& ldmk_keys)

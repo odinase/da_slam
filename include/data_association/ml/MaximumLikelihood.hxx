@@ -3,6 +3,7 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
 #include <slam/types.h>
+#include "slam/utils_g2o.h"
 
 #include <algorithm>
 #include <chrono>
@@ -35,10 +36,8 @@ Hypothesis MaximumLikelihood<POSE, POINT>::associate(const gtsam::Values& estima
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 #endif
 
-    const auto landmark_keys = estimates.extract<POINT>(gtsam::Symbol::ChrTest('l'))  //
-                               | ranges::views::keys                                  //
-                               | ranges::to<std::vector<gtsam::Key>>();
-    const auto num_poses = estimates.extract<POSE>(gtsam::Symbol::ChrTest('x')).size();
+    const auto landmark_keys = gtsam::findLmKeys(estimates);
+    const auto num_poses = gtsam::num_poses(estimates);
     int last_pose = num_poses - 1;  // Assuming first pose is 0
     gtsam::Key x_key = X(last_pose);
     POSE x_pose = estimates.at<POSE>(x_key);
