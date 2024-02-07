@@ -13,10 +13,7 @@
 
 #include "data_association/Hypothesis.h"
 #include "gtsam/nonlinear/Marginals.h"
-#include "imgui.h"
-#include "implot.h"
 #include "slam/types.h"
-#include "visualization/visualization.h"
 
 namespace da
 {

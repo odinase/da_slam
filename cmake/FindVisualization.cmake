@@ -5,6 +5,7 @@ if(VISUALIZATION_BACKEND STREQUAL "OPENGL")
     message("Using visualization backend OpenGL")
     set(OpenGL_GL_PREFERENCE GLVND)
     find_package(OpenGL 3)
+
     set(VISUALIZATION_BACKEND_OPENGL TRUE)
     set(VISUALIZATION_BACKEND_VULKAN FALSE)
 
@@ -18,12 +19,12 @@ elseif(VISUALIZATION_BACKEND STREQUAL "VULKAN")
 endif()
 
 if(VISUALIZATION_BACKEND_OPENGL)
-    set(VIZ_FOUND OpenGL_FOUND)
+set(VIZ_FOUND OpenGL_FOUND)
 elseif(VISUALIZATION_BACKEND_VULKAN)
-    set(VIZ_FOUND Vulkan_FOUND)
+set(VIZ_FOUND Vulkan_FOUND)
 endif()
 
-if(VIZ_FOUND AND glfw3_FOUND)
+if(VIZ_FOUND)
     find_package(glfw3)
     set(VISUALIZATION_AVAILABLE TRUE)
 else()
