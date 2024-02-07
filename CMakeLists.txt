@@ -2,142 +2,36 @@ cmake_minimum_required(VERSION 3.10)
 project(da-slam)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_BUILD_TYPE Release)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD 17)
-# set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -target x86_64-apple-macos12.4")
 
-
-find_package(GTSAM REQUIRED) # Uses installed package
-find_package(GTSAM_UNSTABLE REQUIRED) # Uses installed package
+find_package(GTSAM REQUIRED)
+find_package(GTSAM_UNSTABLE REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(range-v3 REQUIRED)
 
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -target x86_64-apple-darwin20.3.0")
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -ggdb")
-
-
-find_package(glfw3)
-
-SET(VISUALIZATION_BACKEND "OPENGL" CACHE STRING "Visualization backend to use")
-
-if (VISUALIZATION_BACKEND STREQUAL "OPENGL")
-
-message("Using visualization backend OpenGL")
-set(OpenGL_GL_PREFERENCE GLVND)
-find_package(OpenGL 3)
-set(VISUALIZATION_BACKEND_OPENGL TRUE)
-set(VISUALIZATION_BACKEND_VULKAN FALSE)
-
-elseif(VISUALIZATION_BACKEND STREQUAL "VULKAN")
-message("Using visualization backend Vulkan")
-
-find_package(Vulkan REQUIRED)
-set(VISUALIZATION_BACKEND_OPENGL FALSE)
-set(VISUALIZATION_BACKEND_VULKAN TRUE)
-
-endif()
-
-find_package (glog 0.6.0)
-
-
-include_directories(
-  eigen3
-  include
-  ${EIGEN3_INCLUDE_DIR}
-)
-
-if(VISUALIZATION_BACKEND_OPENGL)
-set(VIZ_FOUND OpenGL_FOUND)
-elseif(VISUALIZATION_BACKEND_VULKAN)
-set(VIZ_FOUND Vulkan_FOUND)
-endif()
-
-if(VIZ_FOUND AND glfw3_FOUND)
-set(VISUALIZATION_AVAILABLE TRUE)
-else()
-set(VISUALIZATION_AVAILABLE FALSE)
-endif()
-
-
-if(VISUALIZATION_AVAILABLE)
-include_directories(
-  3rdparty/imgui
-  3rdparty/implot
-  3rdparty/imgui/backends
-)
-
-if (VISUALIZATION_BACKEND_OPENGL)
-include_directories(
-  ${OPENGL_INCLUDE_DIRS} 
-)
-endif()
-endif()
-
-if (glog_FOUND)
-add_definitions(-DGLOG_AVAILABLE)
-message("Building with glog")
-else()
-message("Building without glog")
-endif()
-
-### Options
-
-option(HYPOTHESIS_QUALITY "Compute NIS for joint hypothesis for comparision of hypothesis quality" OFF)
-
-if (HYPOTHESIS_QUALITY)
-  add_definitions(-DHYPOTHESIS_QUALITY)
-  message("HYPOTHESIS_QUALITY = ON")
-else()
-  message("HYPOTHESIS_QUALITY = OFF")
-endif()
-
-option(PROFILING "Poor man's profiling of snippets of code, where added." OFF)
-
-if (PROFILING)
-  add_definitions(-DPROFILING)
-  message("PROFILING = ON")
-else()
-  message("PROFILING = OFF")  
-endif()
-
-option(LOGGING "Log statistics about where the SLAM system is, what it's doing and results" OFF)
-
-if (LOGGING)
-  add_definitions(-DLOGGING)
-  message("LOGGING = ON")
-else()
-  message("LOGGING = OFF")  
-endif()
-
-option(HEARTBEAT "Print periodically how far the SLAM system has come through the dataset" ON)
-
-if (HEARTBEAT)
-  add_definitions(-DHEARTBEAT)
-  message("HEARTBEAT = ON")
-else()
-  message("HEARTBEAT = OFF")  
-endif()
+add_subdirectory(cmake)
 
 option(WITH_TESTS "Compile poor man's testing suite" OFF)
 
 if (WITH_TESTS)
-  message("WITH_TESTS = ON")
+message("WITH_TESTS = ON")
 else()
-  message("WITH_TESTS = OFF")  
+message("WITH_TESTS = OFF")  
 endif()
 
-
 if(VISUALIZATION_AVAILABLE)
-message("VISUALIZATION_AVAILABLE = YES")
-message("VISUALIZATION BACKEND = ${VISUALIZATION_BACKEND}")
+  add_subdirectory(3rdparty)
+  message("VISUALIZATION_AVAILABLE = YES")
+  message("VISUALIZATION BACKEND = ${VISUALIZATION_BACKEND}")
 else()
-message("VISUALIZATION_AVAILABLE = NO")
+  message("VISUALIZATION_AVAILABLE = NO")
 endif()
 
 ### Libraries
-
 
 add_library(config
   src/config.cpp
@@ -170,18 +64,6 @@ target_link_libraries(data_association
   range-v3::range-v3
 )
 
-if(VISUALIZATION_AVAILABLE)
-if(VISUALIZATION_BACKEND_OPENGL)
-add_library(imgui_backend
-    3rdparty/imgui/backends/imgui_impl_glfw.cpp
-    3rdparty/imgui/backends/imgui_impl_opengl3.cpp
-)
-elseif(VISUALIZATION_BACKEND_VULKAN)
-add_library(imgui_backend
-    3rdparty/imgui/backends/imgui_impl_glfw.cpp
-    3rdparty/imgui/backends/imgui_impl_vulkan.cpp
-)
-endif()
 
 target_link_libraries(imgui_backend
     glfw
@@ -310,9 +192,6 @@ endif()
 
 
 set_target_properties(slam_g2o_file PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR} )
-
-
-# Not the correct way of doing this, but whatever
 
 if(WITH_TESTS)
 

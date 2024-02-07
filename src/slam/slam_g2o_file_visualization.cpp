@@ -13,10 +13,6 @@
 #include <string>
 #include <tuple>
 
-#ifdef GLOG_AVAILABLE
-#include <glog/logging.h>
-#endif
-
 // #include "slam/slam_g2o_file.h"
 #include "config/config.h"
 #include "data_association/DataAssociation.h"
@@ -174,10 +170,6 @@ std::string timestep_log_path(char** argv, int step)
 
 int main(int argc, char** argv)
 {
-#ifdef GLOG_AVAILABLE
-    google::InitGoogleLogging(argv[0]);
-    google::InstallFailureSignalHandler();
-#endif
     // default
     string g2oFile = findExampleDataFile("noisyToyGraph.txt");
     bool is3D = false;
