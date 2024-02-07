@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.22)
 project(da-slam)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -15,13 +15,15 @@ find_package(range-v3 REQUIRED)
 
 add_subdirectory(cmake)
 
-option(WITH_TESTS "Compile poor man's testing suite" OFF)
+## TODO(odin): fix
+# option(WITH_TESTS "Compile poor man's testing suite" OFF)
 
-if (WITH_TESTS)
-message("WITH_TESTS = ON")
-else()
-message("WITH_TESTS = OFF")  
-endif()
+# if (WITH_TESTS)
+# message("WITH_TESTS = ON")
+# else()
+# message("WITH_TESTS = OFF")  
+
+# endif()
 
 if(VISUALIZATION_AVAILABLE)
   add_subdirectory(3rdparty)
@@ -62,47 +64,6 @@ target_link_libraries(data_association
   hypothesis
   gtsam
   range-v3::range-v3
-)
-
-
-target_link_libraries(imgui_backend
-    glfw
-    range-v3::range-v3
-)
-if (VISUALIZATION_BACKEND_OPENGL)
-target_link_libraries(imgui_backend
-  ${OPENGL_LIBRARIES}
-)
-elseif(VISUALIZATION_BACKEND_VULKAN)
-target_link_libraries(imgui_backend
-  Vulkan::Vulkan
-  range-v3::range-v3
-)
-endif()
-    
-add_library(imgui
-    3rdparty/imgui/imgui_demo.cpp
-    3rdparty/imgui/imgui_draw.cpp
-    3rdparty/imgui/imgui_tables.cpp
-    3rdparty/imgui/imgui_widgets.cpp
-    3rdparty/imgui/imgui.cpp
-)
-
-target_link_libraries(imgui
-    imgui_backend
-    range-v3::range-v3
-)
-
-add_library(implot
-    3rdparty/implot/implot_demo.cpp
-    3rdparty/implot/implot_items.cpp
-    3rdparty/implot/implot.cpp
-)
-
-target_link_libraries(implot
-    imgui_backend
-    imgui
-    range-v3::range-v3
 )
 
 if (VISUALIZATION_BACKEND_OPENGL)
