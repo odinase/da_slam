@@ -1,6 +1,4 @@
-%YAML:1.0
----
-enable_stepping: false
+enable_stepping: true
 
 draw_factor_graph: true
 draw_factor_graph_ground_truth: true
@@ -8,7 +6,7 @@ draw_factor_graph_ground_truth: true
 enable_factor_graph_window: false
 factor_graph_window: 20 
 
-enable_step_limit: true
+enable_step_limit: false
 step_to_increment_to: 1
 
 autofit: true
