@@ -1,6 +1,6 @@
 set(TEST_SOURCES
     test_auction_method.cpp
-    # test_hungarian_method.cpp
+    test_hungarian_method.cpp
 )
 
 set(TEST_BINARY data_association_tests)

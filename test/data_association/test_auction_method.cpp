@@ -6,7 +6,7 @@
 
 #include "data_association/DataAssociation.h"
 
-TEST(AuctionMethodTests, T01_TestAuctionMethod) {
+TEST(DataAssociationTests, TestAuctionMethod) {
     constexpr double inf = std::numeric_limits<double>::infinity();
 
         Eigen::MatrixXd A(4, 5);

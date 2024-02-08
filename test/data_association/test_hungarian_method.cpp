@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include <Eigen/Core>
 
 #include <limits>
@@ -5,11 +7,7 @@
 
 #include "data_association/DataAssociation.h"
 
-int main(int argc, char **argv)
-{
-    google::InitGoogleLogging(argv[0]);
-    google::InstallFailureSignalHandler();
-
+TEST(DataAssociationTests, TestHungarianMethod) {
     Eigen::MatrixXd A(4, 5);
     A << 10, 19, 8, 15, 0,
          10, 18, 7, 17, 0,
