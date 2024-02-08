@@ -14,6 +14,8 @@
 #include <tuple>
 
 // #include "slam/slam_g2o_file.h"
+#include <filesystem>
+
 #include "config/config.h"
 #include "data_association/DataAssociation.h"
 #include "data_association/gt/KnownDataAssociation.h"
@@ -25,7 +27,6 @@
 #include "slam/utils_g2o.h"
 #include "visualization/drawing.h"
 #include "visualization/visualization.h"
-#include <filesystem>
 
 using namespace std;
 using namespace gtsam;

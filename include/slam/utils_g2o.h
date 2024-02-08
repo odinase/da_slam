@@ -181,15 +181,16 @@ std::pair<std::vector<size_t>, std::vector<size_t>> findFactors(
     return std::make_pair(odomFactorIdx, measFactorIdx);
 }
 
-size_t num_poses(const Values& vals) {
+size_t num_poses(const Values& vals)
+{
     return ranges::count_if(vals.keySet(), [](auto&& k) { return gtsam::symbolChr(k) == 'x'; });
 }
 
 KeyVector findLmKeys(const Values& initial)
 {
-    return initial.keys() //
-    | ranges::actions::remove_if([](auto&& k) { return gtsam::symbolChr(k) != 'l'; } ) //
-    | ranges::actions::unique;
+    return initial.keys()                                                                     //
+           | ranges::actions::remove_if([](auto&& k) { return gtsam::symbolChr(k) != 'l'; })  //
+           | ranges::actions::unique;
 }
 
 KeyVector findLmKeys(const Values::shared_ptr& initial)

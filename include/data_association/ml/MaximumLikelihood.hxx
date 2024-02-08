@@ -3,7 +3,6 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
 #include <slam/types.h>
-#include "slam/utils_g2o.h"
 
 #include <algorithm>
 #include <chrono>
@@ -13,6 +12,7 @@
 #include <utility>
 
 #include "data_association/DataAssociation.h"
+#include "slam/utils_g2o.h"
 
 namespace da
 {
