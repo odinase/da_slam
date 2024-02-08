@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include "visualization/visualization.h"
 #include "visualization/drawing.h"
 #include <Eigen/Core>
@@ -6,7 +8,6 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "implot.h"
-#include <glog/logging.h>
 #include "slam/utils_g2o.h"
 #include <utility>
 #include <limits>
@@ -317,37 +318,6 @@ int main(int argc, char **argv)
             ImPlot::EndPlot();
         }
         ImGui::End();
-
-        // ImGui::Begin("Associations");
-        // if (ImPlot::BeginPlot("##associations", ImVec2(-1, -1)))
-        // {
-        //     double line[4];
-        //     for (int i = 0; i < assos.size(); i++)
-        //     {
-        //         da::hypothesis::Association::shared_ptr a = assos[i];
-        //         gtsam::Point2 meas = measurements[a->measurement].measurement;
-        //         const auto &meas_noise = measurements[a->measurement].noise;
-        //         gtsam::Point2 meas_world = x1 * meas;
-        //         if (a->associated())
-        //         {
-        //             gtsam::Point2 l = curr_estimates.at<gtsam::Point2>(*a->landmark);
-        //             line[0] = meas_world.x();
-        //             line[1] = l.x();
-
-        //             line[2] = meas_world.y();
-        //             line[3] = l.y();
-
-        //             ImPlot::PlotLine("Association", line, line + 2, 2);
-        //         }
-        //         else
-        //         {
-        //         ImPlot::SetNextMarkerStyle(ImPlotMarker_Diamond, 5.0, ImVec4(119.0 / 255.0, 100.0 / 255.0, 182.0 / 255.0, 1.0));
-        //         ImPlot::PlotScatter("Landmark", &meas_world.x(), &meas_world.y(), 1);
-        //         }
-        //     }
-
-        //     ImPlot::EndPlot();
-        // }
 
         ImGui::Begin("Menu");
         next_timestep = ImGui::Button("Next timestep");

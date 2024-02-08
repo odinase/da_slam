@@ -15,16 +15,6 @@ find_package(range-v3 REQUIRED)
 
 include(cmake/AddOptions.cmake)
 
-## TODO(odin): fix
-# option(WITH_TESTS "Compile poor man's testing suite" OFF)
-
-# if (WITH_TESTS)
-# message("WITH_TESTS = ON")
-# else()
-# message("WITH_TESTS = OFF")  
-
-# endif()
-
 include(cmake/FindVisualization.cmake)
 if(VISUALIZATION_AVAILABLE)
   add_subdirectory(3rdparty)
@@ -36,8 +26,12 @@ endif()
 
 add_subdirectory(src)
 
-## TODO(odin): fix this
-# if(WITH_TESTS)
+if(BUILD_TESTING)
+  find_package(GTest REQUIRED)
+  include(GoogleTest)
+  enable_testing()
+  add_subdirectory(test)
+endif()
 
 # add_executable(test_auction_method
 #   tests/test_auction_method.cpp

@@ -1,5 +1,4 @@
 #include <Eigen/Core>
-#include <glog/logging.h>
 
 #include <limits>
 #include <iostream>
