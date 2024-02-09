@@ -1,4 +1,3 @@
-#include <gtest/gtest.h>
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
@@ -48,18 +47,10 @@ namespace gtsam
 using PoseToPointFactor2 = PoseToPointFactor<Pose2, Point2>;
 }
 
-int main(int argc, char** argv)
-{
-    google::InitGoogleLogging(argv[0]);
-    google::InstallFailureSignalHandler();
-
-    // Setup visualization
-    if (!viz::init()) {
-        cout << "Failed to initialize visualization, aborting!\n";
+int main(const int arc, const char* argv[]) {
+    if(!viz::init()) {
         return -1;
     }
-
-    // 1. Build initial estimates of map
 
     gtsam::Values estimates;
     gtsam::NonlinearFactorGraph graph;
@@ -69,7 +60,7 @@ int main(int argc, char** argv)
     gtsam::ISAM2Params isam_params;
     isam_params.relinearizeThreshold = 0.01;
     isam_params.relinearizeSkip = 1;
-    isam_params.setOptimizationParams(gtsam::ISAM2DoglegParams());
+    isam_params.setOptimizationParams(gtsam::ISAM2DoglegParams{});
     gtsam::ISAM2 isam(isam_params);
 
     // Initialize in origin
@@ -89,8 +80,8 @@ int main(int argc, char** argv)
 
     gtsam::noiseModel::Isotropic::shared_ptr meas_noise = gtsam::noiseModel::Isotropic::Sigma(2, meas_sigma);
 
-    double prob = 0.99;
-    double sigmas = sqrt(da::chi2inv(prob, 2));
+    constexpr double prob = 0.99;
+    const double sigmas = sqrt(da::chi2inv(prob, 2));
 
     cout << "sigmas: " << sigmas << "\n";
 

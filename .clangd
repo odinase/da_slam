@@ -1,0 +1,71 @@
+CompileFlags:
+  Add: 
+    [
+    -std=c++17,
+    -Wall,
+    -Wextra,
+    -Wpedantic,
+    -Werror,
+    -Wconversion,
+    -Wsign-conversion,
+    -Wshadow,
+    -pedantic-errors,
+    -Wnon-virtual-dtor,
+    -Wcast-align,
+    -Wunused,
+    -Woverloaded-virtual,
+    -Wmisleading-indentation
+    ]
+  Compiler: clang++
+
+Index:
+  Background: Build
+
+Completion:
+  AllScopes: Yes
+
+InlayHints:
+  Enabled: No 
+  ParameterNames: Yes
+  DeducedTypes: Yes
+Hover:
+  ShowAKA: Yes
+
+Diagnostics:
+  UnusedIncludes: Strict
+  ClangTidy:
+    Add:
+      - clang-analyzer-*
+      - cert-*
+      - cppcoreguidelines-*
+      - hicpp-*
+      - performance-* 
+      - misc-*
+      - bugprone-*
+      - llvm-header-guard
+      - readability-identifier-naming
+    Remove: 
+      # Removed as they trigger on ROS macros
+      - performance-unnecessary-value-param
+      - misc-non-private-member-variables-in-classes
+      - cert-err33-c
+      - cppcoreguidelines-pro-type-vararg
+      - cppcoreguidelines-pro-bounds-array-to-pointer-decay
+      - hicpp-no-array-decay
+      - hicpp-vararg
+
+    CheckOptions:
+      readability-identifier-naming.TypedefCase: CamelCase
+      readability-identifier-naming.StructCase : CamelCase
+      readability-identifier-naming.ClassCase : CamelCase
+      readability-identifier-naming.VariableCase : lower_case
+      readability-identifier-naming.ParameterCase : lower_case
+      readability-identifier-naming.FunctionCase : lower_case
+      readability-identifier-naming.NamespaceCase : lower_case
+      readability-identifier-naming.ConstantCase : UPPER_CASE
+      readability-identifier-naming.ConstantParameterCase : lower_case
+      readability-identifier-naming.LocalConstantCase : lower_case
+      readability-identifier-naming.ConstantMemberCase : lower_case
+      readability-identifier-naming.ConstantPointerParameterCase : lower_case
+      readability-identifier-naming.PrivateMemberPrefix : m_ 
+      readability-identifier-naming.PrivateMemberCase : lower_case
