@@ -1,20 +1,21 @@
-#pragma once
+#ifndef DA_SLAM_CONFIG_CONFIG_HPP
+#define DA_SLAM_CONFIG_CONFIG_HPP
 
 #include <gtsam/nonlinear/Marginals.h>
 
 #include <string>
 
-#include "data_association/DataAssociation.h"
-#include "slam/slam.h"
+#include "da_slam/data_association/data_association_interface.hpp"
+#include "da_slam/slam/slam.hpp"
 
-namespace config
+namespace da_slam::config
 {
 
 struct Config
 {
     Config() = default;
-    Config(const char* filename);
-    Config(const std::string& filename) : Config(filename.c_str())
+    explicit Config(const char* filename);
+    explicit Config(const std::string& filename) : Config(filename.c_str())
     {
     }
 
@@ -28,7 +29,7 @@ struct Config
     bool enable_factor_graph_window;
     int factor_graph_window;
 
-    da::AssociationMethod association_method;
+    data_association::AssociationMethod association_method;
 
     bool with_ground_truth;
     bool stop_at_association_timestep;
@@ -40,4 +41,6 @@ struct Config
     bool break_at_misassociation;
 };
 
-}  // namespace config
+}  // namespace da_slam::config
+
+#endif  // ~DA_SLAM_CONFIG_CONFIG_HPP

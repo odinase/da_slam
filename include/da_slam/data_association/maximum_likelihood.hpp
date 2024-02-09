@@ -10,16 +10,12 @@
 #include <numeric>
 #include <vector>
 
-#include "data_association/DataAssociation.h"
-#include "data_association/Hypothesis.h"
-#include "slam/types.h"
+#include "da_slam/data_association/data_association_interface.hpp"
+#include "da_slam/data_association/hypothesis.hpp"
+#include "da_slam/slam/types.hpp"
 
-namespace da
+namespace da_slam::data_association::maximum_likelihood
 {
-namespace ml
-{
-using hypothesis::Association;
-using hypothesis::Hypothesis;
 
 template <class POSE, class POINT>
 class MaximumLikelihood : public DataAssociation<slam::Measurement<POINT>>

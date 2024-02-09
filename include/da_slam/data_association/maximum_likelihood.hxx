@@ -2,7 +2,6 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
-#include <slam/types.h>
 
 #include <algorithm>
 #include <chrono>
@@ -11,14 +10,13 @@
 #include <memory>
 #include <utility>
 
-#include "data_association/DataAssociation.h"
+#include "da_slam/data_association/data_association_interface.h"
+#include "da_slam/slam/types.h"
 #include "slam/utils_g2o.h"
 
-namespace da
+namespace da_slam::data_association::maximum_likelihood
 {
 
-namespace ml
-{
 using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;
 
@@ -436,5 +434,4 @@ Hypothesis MaximumLikelihood<POSE, POINT>::associate_bad(
     return h;
 }
 
-}  // namespace ml
-}  // namespace da
+}  // namespace da_slam::data_association::maximum_likelihood

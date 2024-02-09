@@ -11,6 +11,8 @@ target_link_libraries(da_slam PUBLIC
     yaml-cpp
     range-v3::range-v3
     Eigen3::Eigen
+    spdlog::spdlog
+    magic_enum::magic_enum
 )
 
 target_include_directories(da_slam PUBLIC

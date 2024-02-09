@@ -35,13 +35,9 @@
 #include <cmath>
 #include <ctime>
 #include <fstream>
-#include <range/v3/action/remove_if.hpp>
-#include <range/v3/action/unique.hpp>
-#include <range/v3/algorithm/count.hpp>
-#include <range/v3/algorithm/count_if.hpp>
 #include <range/v3/all.hpp>
 
-#include "slam/types.h"
+#include "da_slam/slam/types.hpp"
 
 using gtsam::symbol_shorthand::L;  // gtsam/slam/dataset.cpp
 
@@ -183,7 +179,7 @@ std::pair<std::vector<size_t>, std::vector<size_t>> findFactors(
 
 size_t num_poses(const Values& vals)
 {
-    return ranges::count_if(vals.keySet(), [](auto&& k) { return gtsam::symbolChr(k) == 'x'; });
+    return static_cast<size_t>(ranges::count_if(vals.keySet(), [](auto&& k) { return gtsam::symbolChr(k) == 'x'; }));
 }
 
 KeyVector findLmKeys(const Values& initial)

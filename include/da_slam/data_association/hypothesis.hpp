@@ -1,5 +1,5 @@
-#ifndef HYPOTHESIS_H
-#define HYPOTHESIS_H
+#ifndef DA_SLAM_DATA_ASSOCIATION_HYPOTHESIS_HPP
+#define DA_SLAM_DATA_ASSOCIATION_HYPOTHESIS_HPP
 
 #include <gtsam/base/Matrix.h>
 #include <gtsam/inference/Key.h>
@@ -12,24 +12,17 @@
 #include <unordered_set>
 #include <vector>
 
-#include "slam/types.h"
-// #include "MarginalMocks.h"
+#include "da_slam/types.hpp"
 
-namespace da
+namespace da_slam::data_association::hypothesis
 {
-namespace hypothesis
-{
-
-// Config here between mock-up or GTSAM version.
-using Marginals = gtsam::Marginals;
-using JointMarginal = gtsam::JointMarginal;
 
 struct Association
 {
     explicit Association(int m);
     Association(int m, gtsam::Key l, const gtsam::Matrix& Hx, const gtsam::Matrix& Hl, const gtsam::Vector& error);
     Association(int m, gtsam::Key l);  // For ML
-    typedef std::shared_ptr<Association> shared_ptr;
+    using shared_ptr = std::shared_ptr<Association>;
     int measurement;
     std::optional<gtsam::Key> landmark;
     gtsam::Matrix Hx;
@@ -85,7 +78,7 @@ class Hypothesis
 
     Hypothesis() = default;
     Hypothesis(const gtsam::FastVector<Association::shared_ptr>& associations, double nis)
-    : assos_(associations), nis_(nis)
+    : nis_(nis), assos_(associations)
     {
     }
     int num_associations() const;
@@ -135,7 +128,6 @@ class Hypothesis
     void fill_with_unassociated_measurements(int tot_num_measurements);
 };
 
-}  // namespace hypothesis
-}  // namespace da
+}  // namespace da_slam::data_association::hypothesis
 
-#endif  // HYPOTHESIS_H
+#endif  // DA_SLAM_DATA_ASSOCIATION_HYPOTHESIS_HPP

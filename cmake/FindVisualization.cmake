@@ -1,21 +1,14 @@
 set(VISUALIZATION_BACKEND "OPENGL" CACHE STRING "Visualization backend to use")
 
 if(VISUALIZATION_BACKEND STREQUAL "OPENGL")
-
-    message("Using visualization backend OpenGL")
     set(OpenGL_GL_PREFERENCE GLVND)
     find_package(OpenGL 3)
-
     set(VISUALIZATION_BACKEND_OPENGL TRUE)
     set(VISUALIZATION_BACKEND_VULKAN FALSE)
-
 elseif(VISUALIZATION_BACKEND STREQUAL "VULKAN")
-    
-    message("Using visualization backend Vulkan")
     find_package(Vulkan REQUIRED)
     set(VISUALIZATION_BACKEND_OPENGL FALSE)
     set(VISUALIZATION_BACKEND_VULKAN TRUE)
-
 endif()
 
 if(VISUALIZATION_BACKEND_OPENGL)

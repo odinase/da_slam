@@ -13,16 +13,16 @@
 #include <iostream>
 #include <set>
 
-#include "data_association/DataAssociation.h"
-#include "data_association/Hypothesis.h"
-#include "slam/slam.h"
-#include "slam/types.h"
+#include "da_slam/data_association/data_association_interface.hpp"
+#include "da_slam/data_association/hypothesis.hpp"
+#include "da_slam/slam/slam.hpp"
+#include "da_slam/types.hpp"
 
 namespace slam
 {
 
-template <class POSE, class POINT>
-SLAM<POSE, POINT>::SLAM() : latest_pose_key_(0), latest_landmark_key_(0)
+template <typename Pose, typename Point>
+Slam<Pose, Point>::Slam() : m_latest_pose_idx{0}, m_latest_landmark_idx{0}
 {
 }
 

@@ -1,6 +1,7 @@
-#include <stdio.h>
+// NOLINTBEGIN
 
 #include <cmath>
+#include <cstdio>
 #include <exception>
 #include <sstream>
 #include <string>
@@ -28,21 +29,22 @@
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
+#include <spdlog/spdlog.h>
 
 #include <Eigen/Cholesky>
 #include <Eigen/Core>
 
-#include "data_association/DataAssociation.h"
-#include "slam/slam.h"
-#include "visualization/colors.h"
-#include "visualization/visualization.h"
+#include "da_slam/data_association/data_association_interface.hpp"
+#include "da_slam/slam/slam.hpp"
+#include "da_slam/visualization/colors.hpp"
+#include "da_slam/visualization/visualization.hpp"
 
 static void glfw_error_callback(int error, const char* description)
 {
-    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+    spdlog::error("Glfw Error {}: {}", error, description);
 }
 
-namespace visualization
+namespace da_slam::visualization
 {
 static GLFWwindow* WINDOW = NULL;
 
@@ -150,4 +152,5 @@ void shutdown()
     glfwTerminate();
 }
 
-}  // namespace visualization
+}  // namespace da_slam::visualization
+   // NOLINTEND

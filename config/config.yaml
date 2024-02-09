@@ -1,27 +1,28 @@
 enable_stepping: true
 
 draw_factor_graph: true
+
 draw_factor_graph_ground_truth: true
 
 enable_factor_graph_window: false
+
 factor_graph_window: 20 
 
 enable_step_limit: false
+
 step_to_increment_to: 1
 
 autofit: true
 
 draw_association_hypothesis: true
+
 stop_at_association_timestep: false
 
-# MaximumLikelihood = 0, KnownDataAssociation = 1,
-association_method: 0
+association_method: MAXIMUM_LIKELIHOOD
 
-# GN = 0, LM = 1
-optimization_method: 0
+optimization_method: GAUSS_NEWTON
 
-# CHOLESKY = 0, QR = 1
-marginals_factorization: 0
+marginals_factorization: CHOLESKY
 
 with_ground_truth: true
 

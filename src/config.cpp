@@ -1,11 +1,14 @@
-#include "config/config.h"
+#include "da_slam/config.hpp"
 
 #include <yaml-cpp/yaml.h>
 
 #include <iostream>
 
-namespace config
+namespace da_slam::config
 {
+
+namespace da = data_association;
+
 Config::Config(const char* filename)
 {
     const auto yaml = YAML::LoadFile(filename);
@@ -20,21 +23,7 @@ Config::Config(const char* filename)
     enable_factor_graph_window = yaml["enable_factor_graph_window"].as<bool>();
     factor_graph_window = yaml["factor_graph_window"].as<int>();
 
-    const auto asso_method = yaml["association_method"].as<int>();
-    switch (asso_method) {
-        case 0:
-        case 1:
-        {
-            association_method = static_cast<da::AssociationMethod>(asso_method);
-            break;
-        }
-        default:
-        {
-            std::cout << "Unknown vaule passed in, got " << asso_method << ", using ML\n";
-            association_method = da::AssociationMethod::MaximumLikelihood;
-            break;
-        }
-    }
+    association_method = yaml["association_method"].as<std::string>();
 
     with_ground_truth = yaml["with_ground_truth"].as<bool>();
 
@@ -79,4 +68,4 @@ Config::Config(const char* filename)
     break_at_misassociation = yaml["break_at_misassociation"].as<bool>();
 }
 
-}  // namespace config
+}  // namespace da_slam::config
