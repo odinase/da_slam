@@ -16,17 +16,17 @@
 // #include "slam/slam_g2o_file.h"
 #include <filesystem>
 
-#include "config/config.h"
-#include "data_association/DataAssociation.h"
-#include "data_association/gt/KnownDataAssociation.h"
-#include "data_association/ml/MaximumLikelihood.h"
+#include "da_slam/config.hpp"
+#include "da_slam/data_association/data_association_interface.hpp"
+#include "da_slam/data_association/known_data_association.hpp"
+#include "da_slam/data_association/maximum_likelihood.hpp"
+#include "da_slam/slam/slam.hpp"
+#include "da_slam/types.hpp"
+#include "da_slam/slam/utils_g2o.hpp"
+#include "da_slam/visualization/drawing.hpp"
+#include "da_slam/visualization/visualization.hpp"
 #include "imgui.h"
 #include "implot.h"
-#include "slam/slam.h"
-#include "slam/types.h"
-#include "slam/utils_g2o.h"
-#include "visualization/drawing.h"
-#include "visualization/visualization.h"
 
 using namespace std;
 using namespace gtsam;
@@ -34,7 +34,7 @@ using namespace gtsam;
 using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;
 
-namespace viz = visualization;
+namespace viz = da_slam::visualization;
 
 std::optional<std::pair<gtsam::Key, gtsam::Key>> nonlinearFactor2keys(const gtsam::NonlinearFactor::shared_ptr& factor)
 {
