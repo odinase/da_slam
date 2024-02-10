@@ -15,7 +15,8 @@
 #include "da_slam/types.hpp"
 #include "gtsam/nonlinear/Marginals.h"
 
-namespace da_slam::data_association::innovation {
+namespace da_slam::data_association::innovation
+{
 
 template <typename Pose, typename Point>
 std::pair<gtsam::Vector, gtsam::Matrix> innovation(gtsam::Key x_key, gtsam::Key lmk_key, const Pose& x, const Point& l,
@@ -88,6 +89,6 @@ auto innovation_covariance(gtsam::Key x_key, const gtsam::JointMarginal& joint_m
     return H * P * H.transpose() + R;
 }
 
-} // namespace da_slam::data_association::innovation
+}  // namespace da_slam::data_association::innovation
 
-#endif // DA_SLAM_DATA_ASSOCIATION_INNOVATION_HPP
+#endif  // DA_SLAM_DATA_ASSOCIATION_INNOVATION_HPP

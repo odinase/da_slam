@@ -1,3 +1,4 @@
+// NOLINTBEGIN
 #pragma once
 /* ----------------------------------------------------------------------------
 
@@ -37,7 +38,7 @@
 #include <fstream>
 #include <range/v3/all.hpp>
 
-#include "da_slam/slam/types.hpp"
+#include "da_slam/types.hpp"
 
 using gtsam::symbol_shorthand::L;  // gtsam/slam/dataset.cpp
 
@@ -493,3 +494,5 @@ void writeG2o_with_landmarks(const gtsam::NonlinearFactorGraph& graph, const gts
         }
     }
 }
+
+// NOLINTEND

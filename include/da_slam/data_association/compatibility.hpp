@@ -15,7 +15,8 @@
 #include "da_slam/types.hpp"
 #include "gtsam/nonlinear/Marginals.h"
 
-namespace da_slam::data_association::compatibility {
+namespace da_slam::data_association::compatibility
+{
 
 template <typename Measurement>
 double individual_compatibility(const hypothesis::Association& a, gtsam::Key x_key,
@@ -162,6 +163,6 @@ double joint_compatibility(const hypothesis::Hypothesis& h, gtsam::Key x_key, co
     return nis;
 }
 
-} // namespace da_slam::data_association::compatibility
+}  // namespace da_slam::data_association::compatibility
 
-#endif // DA_SLAM_DATA_ASSOCIATION_COMPATIBILITY_HPP
+#endif  // DA_SLAM_DATA_ASSOCIATION_COMPATIBILITY_HPP

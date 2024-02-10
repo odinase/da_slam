@@ -43,4 +43,4 @@ struct Config
 
 }  // namespace da_slam::config
 
-#endif  // ~DA_SLAM_CONFIG_CONFIG_HPP
+#endif  // DA_SLAM_CONFIG_CONFIG_HPP

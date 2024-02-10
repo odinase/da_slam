@@ -1,7 +1,6 @@
 #ifndef DATA_ASSOCIATION_H
 #define DATA_ASSOCIATION_H
 
-#include <boost/math/distributions.hpp>
 #include <cmath>
 #include <deque>
 #include <functional>
@@ -28,7 +27,7 @@ class IDataAssociation
 {
    public:
     virtual hypothesis::Hypothesis associate(const gtsam::Values& estimates, const gtsam::Marginals& marginals,
-                                             const gtsam::FastVector<Measurement>& measurements) = 0;
+                                             const gtsam::FastVector<Measurement>& measurements) const = 0;
 
     virtual ~IDataAssociation() = default;
     IDataAssociation() = default;
@@ -37,10 +36,6 @@ class IDataAssociation
     IDataAssociation& operator=(const IDataAssociation& rhs) = delete;
     IDataAssociation& operator=(IDataAssociation&& rhs) noexcept = delete;
 };
-
-double chi2inv(double p, unsigned int dim);
-std::vector<int> auction(const Eigen::MatrixXd& problem, double eps = 1e-3, uint64_t max_iterations = 10'000);
-std::vector<int> hungarian(const Eigen::MatrixXd& cost_matrix);
 
 }  // namespace da_slam::data_association
 

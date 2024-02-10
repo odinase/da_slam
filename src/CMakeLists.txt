@@ -2,8 +2,9 @@ set(TARGETS_TO_INSTALL "")
 
 add_library(da_slam
     config.cpp
-    data_association/Hypothesis.cpp
-    data_association/DataAssociation.cpp
+    data_association/hypothesis.cpp
+    data_association/compatibility.cpp
+    data_association/innovation.cpp
 )
 
 target_link_libraries(da_slam PUBLIC
