@@ -29,10 +29,10 @@ int main(const int argc, const char* argv[])
     const auto [g2oFile, is3D, ic_prob, range_threshold, output_file] = da_slam::argparse::parse_args(argc, argv);
 
     const auto yaml_path = std::filesystem::current_path() / "config" / "config.yaml";
-    da_slam::config::Config conf(yaml_path);
+    const config::Config conf(yaml_path);
 
-    da_slam::slam::OptimizationMethod optimization_method = conf.optimization_method;
-    gtsam::Marginals::Factorization marginals_factorization = conf.marginals_factorization;
+    const slam::OptimizationMethod optimization_method = conf.optimization_method;
+    const gtsam::Marginals::Factorization marginals_factorization = conf.marginals_factorization;
 
     vector<std::shared_ptr<PoseToPointFactor<Pose2, Point2>>> measFactors2d;
     vector<std::shared_ptr<PoseToPointFactor<Pose3, Point3>>> measFactors3d;
@@ -66,7 +66,7 @@ int main(const int argc, const char* argv[])
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix();  // Calc sigmas from variances
             vector<types::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::Slam3D slam_sys{};
-            std::shared_ptr<data_association::IDataAssociation<types::Measurement3D>> data_asso;
+            std::shared_ptr<data_association::IDataAssociation<types::Measurement3D>> data_asso{};
 
             switch (association_method) {
                 case data_association::AssociationMethod::MAXIMUM_LIKELIHOOD:

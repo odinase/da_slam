@@ -6,6 +6,11 @@
 namespace da_slam::data_association::assignment_solvers
 {
 
+enum class AssignmentSolver : uint8_t {
+    AUCTION = 0,
+    HUNGARIAN = 1,
+};
+
 class IAssignmentSolver
 {
    public:

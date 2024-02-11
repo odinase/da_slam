@@ -1,29 +1,21 @@
-enable_stepping: true
+data_association:
+  method: MAXIMUM_LIKELIHOOD
+  assignment_solver: AUCTION
 
-draw_factor_graph: true
+optimization:
+  method: GAUSS_NEWTON
+  marginals_factorization: CHOLESKY
 
-draw_factor_graph_ground_truth: true
-
-enable_factor_graph_window: false
-
-factor_graph_window: 20 
-
-enable_step_limit: false
-
-step_to_increment_to: 1
-
-autofit: true
-
-draw_association_hypothesis: true
-
-stop_at_association_timestep: false
-
-association_method: MAXIMUM_LIKELIHOOD
-
-optimization_method: GAUSS_NEWTON
-
-marginals_factorization: CHOLESKY
-
-with_ground_truth: true
-
-break_at_misassociation: true
+visualization:
+  with_ground_truth: true
+  break_at_misassociation: true
+  enable_stepping: true
+  draw_factor_graph: true
+  draw_factor_graph_ground_truth: true
+  enable_factor_graph_window: false
+  factor_graph_window: 20 
+  enable_step_limit: false
+  step_to_increment_to: 1
+  autofit: true
+  draw_association_hypothesis: true
+  stop_at_association_timestep: false
