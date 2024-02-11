@@ -61,17 +61,17 @@ int main(const int argc, const char* argv[])
 
     try {
         if (is3D) {
-            double sigmas = sqrt(da::chi2inv(ic_prob, 3));
+            double sigmas = sqrt(utils::chi2inv(ic_prob, 3));
             gtsam::Vector pose_prior_noise = (gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished();
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix();  // Calc sigmas from variances
-            vector<slam::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
-            slam::SLAM3D slam_sys{};
-            std::shared_ptr<da::DataAssociation<slam::Measurement3D>> data_asso;
+            vector<types::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
+            slam::Slam3D slam_sys{};
+            std::shared_ptr<data_association::IDataAssociation<types::Measurement3D>> data_asso;
 
             switch (association_method) {
-                case da::AssociationMethod::MaximumLikelihood:
+                case data_association::AssociationMethod::MAXIMUM_LIKELIHOOD:
                 {
-                    data_asso = std::make_shared<da::ml::MaximumLikelihood3D>(sigmas, range_threshold);
+                    data_asso = std::make_shared<data_association::MaximumLikelihood3D>(sigmas, range_threshold);
                     break;
                 }
                 case da::AssociationMethod::KnownDataAssociation:
