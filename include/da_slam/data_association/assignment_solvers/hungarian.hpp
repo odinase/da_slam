@@ -14,4 +14,4 @@ class Hungarian final : public IAssignmentSolver
 
 }  // namespace da_slam::data_association::assignment_solvers
 
-#endif  // ~_PROG_CPP_DA_SLAM_INCLUDE_DA_SLAM_DATA_ASSOCIATION_ASSIGNMENT_SOLVERS_HUNGARIAN_HPP
+#endif  // DA_SLAM_DATA_ASSOCIATION_ASSIGNMENT_SOLVERS_HUNGARIAN_HPP

@@ -32,11 +32,11 @@
 #include <Eigen/Cholesky>
 #include <Eigen/Core>
 
-#include "data_association/DataAssociation.h"
-#include "slam/slam.h"
-#include "visualization/colors.h"
-#include "visualization/drawing.h"
-#include "visualization/visualization.h"
+#include "da_slam/data_association/data_association_interface.hpp"
+#include "da_slam/slam/slam.hpp"
+#include "da_slam/visualization/colors.hpp"
+#include "da_slam/visualization/drawing.hpp"
+#include "da_slam/visualization/visualization.hpp"
 
 Eigen::MatrixXd ellipse2d(const Eigen::Vector2d& mu, const Eigen::Matrix2d& P, const double s = 1.0, const int n = 200)
 {

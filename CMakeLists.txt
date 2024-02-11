@@ -13,14 +13,8 @@ find_package(yaml-cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(range-v3 REQUIRED)
 find_package(spdlog REQUIRED)
-
-include(FetchContent)
-FetchContent_Declare(
-  magic_enum
-  GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
-  GIT_TAG        master
-)
-FetchContent_MakeAvailable(magic_enum)
+find_package(magic_enum CONFIG REQUIRED)
+find_package(argparse REQUIRED)
 
 include(cmake/AddOptions.cmake)
 

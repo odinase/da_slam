@@ -4,10 +4,10 @@
 
 #include <memory>
 
+#include "da_slam/types.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include "slam/types.h"
 #if defined(IMGUI_IMPL_OPENGL_ES2)
 #include <GLES2/gl2.h>
 #endif
@@ -23,10 +23,10 @@
 
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 
-#include "data_association/DataAssociation.h"
-#include "data_association/Hypothesis.h"
+#include "da_slam/data_association/data_association_interface.hpp"
+#include "da_slam/data_association/hypothesis.hpp"
 
-namespace visualization
+namespace da_slam::visualization
 {
 
 void progress_bar(int curr_timestep, int tot_timesteps);
@@ -34,13 +34,13 @@ void progress_bar(int curr_timestep, int tot_timesteps);
 // Assumes that factors are PoseToPoint 2D, robot is pose and landmarks are points
 void draw_factor_graph(const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& estimates,
                        int latest_time_step = 0);
-void draw_hypothesis(const da::hypothesis::Hypothesis& hypothesis,
-                     const slam::Measurements<gtsam::Point2>& measurements, const gtsam::NonlinearFactorGraph& graph,
+void draw_hypothesis(const data_association::hypothesis::Hypothesis& hypothesis,
+                     const types::Measurements<gtsam::Point2>& measurements, const gtsam::NonlinearFactorGraph& graph,
                      const gtsam::Values& estimates, const gtsam::Key x_key, const double sigmas, const double ic_prob,
                      const std::map<gtsam::Key, bool>& lmk_cov_to_draw);
 
-void draw_hypothesis(const da::hypothesis::Hypothesis& hypothesis,
-                     const slam::Measurements<gtsam::Point3>& measurements, const gtsam::NonlinearFactorGraph& graph,
+void draw_hypothesis(const data_association::hypothesis::Hypothesis& hypothesis,
+                     const types::Measurements<gtsam::Point3>& measurements, const gtsam::NonlinearFactorGraph& graph,
                      const gtsam::Values& estimates, const gtsam::Key x_key, const double sigmas, const double ic_prob,
                      const std::map<gtsam::Key, bool>& lmk_cov_to_draw);
 
@@ -53,4 +53,4 @@ void draw_covar_ell(const Eigen::Vector3d& l, const Eigen::Matrix3d& S, const do
                     const char* covariance_label = "Covariance", const int n = 200);
 void draw_circle(const Eigen::Vector2d& center, const double r = 1.0, const int n = 200);
 
-}  // namespace visualization
+}  // namespace da_slam::visualization

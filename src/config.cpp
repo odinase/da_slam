@@ -3,11 +3,10 @@
 #include <yaml-cpp/yaml.h>
 
 #include <iostream>
+#include <magic_enum.hpp>
 
 namespace da_slam::config
 {
-
-namespace da = data_association;
 
 Config::Config(const char* filename)
 {
@@ -23,45 +22,19 @@ Config::Config(const char* filename)
     enable_factor_graph_window = yaml["enable_factor_graph_window"].as<bool>();
     factor_graph_window = yaml["factor_graph_window"].as<int>();
 
-    association_method = yaml["association_method"].as<std::string>();
+    association_method = magic_enum::enum_cast<data_association::AssociationMethod>(
+                             yaml["association_method"].as<std::string>(), magic_enum::case_insensitive)
+                             .value();
 
     with_ground_truth = yaml["with_ground_truth"].as<bool>();
 
-    const auto optim = yaml["optimization_method"].as<int>();
-    switch (optim) {
-        case 0:
-        case 1:
-        {
-            optimization_method = static_cast<slam::OptimizationMethod>(optim);
-            break;
-        }
-        default:
-        {
-            std::cout << "Unknown vaule passed in, got " << optim << ", using GN\n";
-            optimization_method = slam::OptimizationMethod::GaussNewton;
-            break;
-        }
-    }
+    optimization_method = magic_enum::enum_cast<slam::OptimizationMethod>(yaml["optimization_method"].as<std::string>(),
+                                                                          magic_enum::case_insensitive)
+                              .value();
 
-    const auto fact = yaml["marginals_factorization"].as<int>();
-    switch (fact) {
-        case 0:
-        {
-            marginals_factorization = gtsam::Marginals::CHOLESKY;
-            break;
-        }
-        case 1:
-        {
-            marginals_factorization = gtsam::Marginals::QR;
-            break;
-        }
-        default:
-        {
-            std::cout << "Unknown vaule passed in, got " << fact << ", using Cholesky\n";
-            marginals_factorization = gtsam::Marginals::CHOLESKY;
-            break;
-        }
-    }
+    marginals_factorization = magic_enum::enum_cast<gtsam::Marginals::Factorization>(
+                                  yaml["marginals_factorization"].as<std::string>(), magic_enum::case_insensitive)
+                                  .value();
 
     stop_at_association_timestep = yaml["stop_at_association_timestep"].as<bool>();
     draw_association_hypothesis = yaml["draw_association_hypothesis"].as<bool>();

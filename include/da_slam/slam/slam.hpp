@@ -30,7 +30,7 @@ enum class OptimizationMethod : uint8_t {
 };
 
 template <typename Pose, typename Point>
-class Slam : public ISlam
+class Slam
 {
    public:
     Slam() : m_latest_pose_idx{0}, m_latest_landmark_idx{0}
@@ -122,8 +122,8 @@ class Slam : public ISlam
         m_marginals_factorization = marginals_factorization;
 
         // Add prior on first pose
-        m_graph.add(gtsam::PriorFactor<Pose>(x(m_latest_pose_idx), Pose{}, m_pose_prior_noise));
-        m_estimates.insert(x(m_latest_pose_idx), Pose{});
+        m_graph.add(gtsam::PriorFactor<Pose>(utils::pose_key(m_latest_pose_idx), Pose{}, m_pose_prior_noise));
+        m_estimates.insert(utils::pose_key(m_latest_pose_idx), Pose{});
     }
 
     const gtsam::NonlinearFactorGraph& get_graph() const
@@ -143,7 +143,7 @@ class Slam : public ISlam
 
     gtsam::Key latest_pose_key() const
     {
-        return X(m_latest_pose_idx);
+        return utils::pose_key(m_latest_pose_idx);
     }
 
     Pose latest_pose() const

@@ -2,6 +2,7 @@
 #define DA_SLAM_UTILS_HPP
 
 #include <gtsam/inference/Symbol.h>
+
 #include <boost/math/distributions.hpp>
 
 namespace da_slam::utils

@@ -1,17 +1,19 @@
-#include "da_slam/data_association/hypothesis.h"
+#include "da_slam/data_association/hypothesis.hpp"
 
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/inference/Key.h>
 
 #include <algorithm>
+#include <range/v3/all.hpp>
 #include <unordered_set>
 
-namespace da
+namespace rng = ranges;
+namespace rngv = ranges::views;
+
+namespace da_slam::data_association::hypothesis
 {
 
-namespace hypothesis
-{
 Association::Association(int m) : measurement(m), landmark(std::nullopt)
 {
 }
@@ -26,43 +28,40 @@ Association::Association(int m, gtsam::Key l) : measurement(m), landmark(l)
 
 int Hypothesis::num_associations() const
 {
-    return std::count_if(assos_.cbegin(), assos_.cend(),
+    return std::count_if(m_assos.cbegin(), m_assos.cend(),
                          [](const Association::shared_ptr& a) { return a->associated(); });
 }
 
 int Hypothesis::num_measurements() const
 {
-    return assos_.size();
+    return m_assos.size();
 }
 
 gtsam::KeyVector Hypothesis::associated_landmarks() const
 {
-    gtsam::KeyVector landmarks;
-    for (const auto& a : assos_) {
-        if (a->associated()) {
-            landmarks.push_back(*a->landmark);
-        }
-    }
-    return landmarks;
+    return m_assos                                                         //
+           | rngv::filter([](auto&& asso) { return asso->associated(); })  //
+           | rngv::transform([](auto&& asso) { return *asso->landmark; })  //
+           | rng::to<gtsam::KeyVector>();
 }
 // Needed for min heap
 bool Hypothesis::operator<(const Hypothesis& rhs) const
 {
     return num_associations() > rhs.num_associations() ||
-           (num_associations() == rhs.num_associations() && nis_ < rhs.nis_);
+           (num_associations() == rhs.num_associations() && m_nis < rhs.m_nis);
 }
 
 // Needed for min heap
 bool Hypothesis::operator>(const Hypothesis& rhs) const
 {
     return num_associations() < rhs.num_associations() ||
-           (num_associations() == rhs.num_associations() && nis_ > rhs.nis_);
+           (num_associations() == rhs.num_associations() && m_nis > rhs.m_nis);
 }
 
 // Added for completion of comparision operators
 bool Hypothesis::operator==(const Hypothesis& rhs) const
 {
-    return num_associations() == rhs.num_associations() && nis_ == rhs.nis_;
+    return num_associations() == rhs.num_associations() && m_nis == rhs.m_nis;
 }
 
 // Added for completion of comparision operators
@@ -89,7 +88,7 @@ Hypothesis Hypothesis::empty_hypothesis()
 
 void Hypothesis::extend(const Association::shared_ptr& a)
 {
-    assos_.push_back(a);
+    m_assos.push_back(a);
 }
 
 Hypothesis Hypothesis::extended(const Association::shared_ptr& a) const
@@ -102,7 +101,7 @@ Hypothesis Hypothesis::extended(const Association::shared_ptr& a) const
 gtsam::FastVector<std::pair<int, gtsam::Key>> Hypothesis::measurement_landmark_associations() const
 {
     gtsam::FastVector<std::pair<int, gtsam::Key>> measurement_landmark_associations;
-    for (const auto& a : assos_) {
+    for (const auto& a : m_assos) {
         if (a->associated()) {
             measurement_landmark_associations.push_back({a->measurement, *a->landmark});
         }
@@ -118,8 +117,9 @@ void Hypothesis::fill_with_unassociated_measurements(int tot_num_measurements)
     for (int i = 0; i < tot_num_measurements; i++) {
         all_measurements.push_back(i);
     }
+
     std::vector<int> meas_in_hypothesis;
-    for (const auto& a : assos_) {
+    for (const auto& a : m_assos) {
         meas_in_hypothesis.push_back(a->measurement);
     }
 
@@ -135,20 +135,20 @@ void Hypothesis::fill_with_unassociated_measurements(int tot_num_measurements)
     v.resize(it - v.begin());
 
     for (const auto& vv : v) {
-        assos_.push_back(std::make_shared<Association>(vv));
+        m_assos.push_back(std::make_shared<Association>(vv));
     }
-    std::sort(assos_.begin(), assos_.end(), [](const auto& lhs, const auto& rhs) { return (*lhs) < (*rhs); });
+    std::sort(m_assos.begin(), m_assos.end(), [](const auto& lhs, const auto& rhs) { return (*lhs) < (*rhs); });
 }
 
 // Compute map that, for each measurement, check whether a hypothesis is equal to another
 std::map<int, bool> Hypothesis::compare(const Hypothesis& other) const
 {
     std::map<int, bool> equal_assos;
-    for (const auto& asso : assos_) {
+    for (const auto& asso : m_assos) {
         int m = asso->measurement;
-        const auto it = std::find_if(other.assos_.begin(), other.assos_.end(),
+        const auto it = std::find_if(other.m_assos.begin(), other.m_assos.end(),
                                      [&](const auto& elem) { return elem->measurement == asso->measurement; });
-        if (it != other.assos_.end()) {
+        if (it != other.m_assos.end()) {
             equal_assos[m] = *asso == **it;
         }
         else {
@@ -159,5 +159,4 @@ std::map<int, bool> Hypothesis::compare(const Hypothesis& other) const
     return equal_assos;
 }
 
-}  // namespace hypothesis
-}  // namespace da
+}  // namespace da_slam::data_association::hypothesis

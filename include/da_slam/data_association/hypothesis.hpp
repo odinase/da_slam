@@ -70,26 +70,26 @@ struct Association
 class Hypothesis
 {
    private:
-    double nis_;
-    gtsam::FastVector<Association::shared_ptr> assos_;
+    double m_nis;
+    gtsam::FastVector<Association::shared_ptr> m_assos;
 
    public:
     typedef std::shared_ptr<Hypothesis> shared_ptr;
 
     Hypothesis() = default;
     Hypothesis(const gtsam::FastVector<Association::shared_ptr>& associations, double nis)
-    : nis_(nis), assos_(associations)
+    : m_nis(nis), m_assos(associations)
     {
     }
     int num_associations() const;
     int num_measurements() const;
     void set_nis(double nis)
     {
-        nis_ = nis;
+        m_nis = nis;
     }
     double get_nis() const
     {
-        return nis_;
+        return m_nis;
     }
 
     gtsam::KeyVector associated_landmarks() const;
@@ -118,7 +118,7 @@ class Hypothesis
 
     const gtsam::FastVector<Association::shared_ptr>& associations() const
     {
-        return assos_;
+        return m_assos;
     }
 
     // Compute map that, for each measurement, check whether a hypothesis is equal to another
