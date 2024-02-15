@@ -13,3 +13,4 @@ slam_g2o_file_visualization
 !CMakeLists.txt
 /.cache
 imgui.ini
+/main
