@@ -1,9 +1,9 @@
-#include <gtsam/geometry/Pose2.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/sam/BearingRangeFactor.h>
 #include <gtsam/slam/dataset.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
+#include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cmath>
@@ -18,7 +18,8 @@
 #include "da_slam/slam/slam.hpp"
 #include "da_slam/slam/utils_g2o.hpp"
 #include "da_slam/types.hpp"
-#include <spdlog/spdlog.h>
+#include "da_slam/data_association/assignment_solvers/hungarian.hpp"
+#include "da_slam/data_association/assignment_solvers/auction.hpp"
 
 using namespace std;
 using namespace gtsam;
@@ -59,26 +60,30 @@ int main(const int argc, const char* argv[])
     spdlog::info("Using optimization method {}", conf.optimization_method);
     spdlog::info("Using marginals factorization {}", conf.marginals_factorization);
 
+    auto assignment_solver = std::make_unique<data_association::assignment_solvers::Hungarian>();
+
     try {
         if (is3D) {
-            double sigmas = sqrt(utils::chi2inv(ic_prob, 3));
+            const double sigmas = sqrt(utils::chi2inv(ic_prob, 3));
+            const auto ml_config = data_association::maximum_likelihood::MaximumLikelihoodParameters{sigmas, range_threshold};
             gtsam::Vector pose_prior_noise = (gtsam::Vector(6) << 1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4).finished();
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix();  // Calc sigmas from variances
             vector<types::Timestep3D> timesteps = convert_into_timesteps(odomFactors3d, measFactors3d);
             slam::Slam3D slam_sys{};
-            std::shared_ptr<data_association::IDataAssociation<types::Measurement3D>> data_asso{};
+            std::unique_ptr<data_association::IDataAssociation<types::Measurement3D>> data_asso{};
 
             switch (association_method) {
                 case data_association::AssociationMethod::MAXIMUM_LIKELIHOOD:
                 {
-                    data_asso = std::make_shared<data_association::MaximumLikelihood3D>(sigmas, range_threshold);
+                    data_asso =
+                        std::make_unique<data_association::maximum_likelihood::MaximumLikelihood3D>(ml_config, std::move(assignment_solver));
                     break;
                 }
-                case da::AssociationMethod::KnownDataAssociation:
+                case data_association::AssociationMethod::KNOWN_DATA_ASSOCIATION:
                 {
                     std::map<uint64_t, gtsam::Key> meas_lmk_assos =
                         measurement_landmarks_associations(measFactors3d, timesteps);
-                    data_asso = std::make_shared<da::gt::KnownDataAssociation3D>(meas_lmk_assos);
+                    data_asso = std::make_unique<data_association::ground_truth::KnownDataAssociation3D>(meas_lmk_assos);
                     break;
                 }
             }
@@ -87,7 +92,7 @@ int main(const int argc, const char* argv[])
             int tot_timesteps = timesteps.size();
             for (const auto& timestep : timesteps) {
                 start_t = std::chrono::high_resolution_clock::now();
-                slam_sys.processTimestep(timestep);
+                slam_sys.process_timestep(timestep);
                 end_t = std::chrono::high_resolution_clock::now();
                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
 #ifdef HEARTBEAT
@@ -96,45 +101,45 @@ int main(const int argc, const char* argv[])
 #endif
                 total_time += duration;
                 final_error = slam_sys.error();
-                estimates = slam_sys.currentEstimates();
+                estimates = slam_sys.current_estimates();
             }
             NonlinearFactorGraph::shared_ptr graphNoKernel;
             Values::shared_ptr initial2;
             std::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
-            writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
+            writeG2o(*graphNoKernel, slam_sys.current_estimates(), output_file);
             string viz_filename = string("viz_ml") + string(".g2o");
-            gtsam::NonlinearFactorGraph curr_graph = slam_sys.getGraph();
-            writeG2oLdmkEdges(curr_graph, slam_sys.currentEstimates(), viz_filename, output_file);
-            slam_sys.getGraph().saveGraph("/home/odinase/prog/C++/da-slam/graph.txt", slam_sys.currentEstimates());
+            gtsam::NonlinearFactorGraph curr_graph = slam_sys.get_graph();
+            writeG2oLdmkEdges(curr_graph, slam_sys.current_estimates(), viz_filename, output_file);
+            slam_sys.get_graph().saveGraph("/home/odinase/prog/C++/da-slam/graph.txt", slam_sys.current_estimates());
         }
         else {
-            double sigmas = sqrt(da::chi2inv(ic_prob, 2));
+            double sigmas = sqrt(da_slam::utils::chi2inv(ic_prob, 2));
             gtsam::Vector pose_prior_noise = Vector3(1e-6, 1e-6, 1e-8);
             pose_prior_noise = pose_prior_noise.array().sqrt().matrix();  // Calc sigmas from variances
-            vector<slam::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
-            slam::SLAM2D slam_sys{};
+            vector<types::Timestep2D> timesteps = convert_into_timesteps(odomFactors2d, measFactors2d);
+            slam::Slam2D slam_sys{};
             std::unique_ptr<data_association::IDataAssociation<types::Measurement2D>> data_asso{};
 
             switch (association_method) {
-                case da::AssociationMethod::MaximumLikelihood:
+                case da_slam::data_association::AssociationMethod::MAXIMUM_LIKELIHOOD:
                 {
-                    data_asso = std::make_unique<da::ml::MaximumLikelihood2D>(sigmas, range_threshold);
+                    data_asso = std::make_unique<data_association::maximum_likelihood::MaximumLikelihood2D>(sigmas, range_threshold);
                     break;
                 }
-                case da::AssociationMethod::KnownDataAssociation:
+                case da_slam::data_association::AssociationMethod::KNOWN_DATA_ASSOCIATION:
                 {
                     std::map<uint64_t, gtsam::Key> meas_lmk_assos =
                         measurement_landmarks_associations(measFactors2d, timesteps);
-                    data_asso = std::make_unique<da::gt::KnownDataAssociation2D>(meas_lmk_assos);
+                    data_asso = std::make_unique<data_association::ground_truth::KnownDataAssociation2D>(meas_lmk_assos);
                     break;
                 }
             }
 
-            slam_sys.initialize(pose_prior_noise, data_asso, optimization_method, marginals_factorization);
+            slam_sys.initialize(pose_prior_noise, std::move(data_asso), optimization_method, marginals_factorization);
             int tot_timesteps = timesteps.size();
             for (const auto& timestep : timesteps) {
                 start_t = std::chrono::high_resolution_clock::now();
-                slam_sys.processTimestep(timestep);
+                slam_sys.process_timestep(timestep);
                 end_t = std::chrono::high_resolution_clock::now();
                 double duration = chrono::duration_cast<chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
 #ifdef LOGGING
@@ -148,24 +153,24 @@ int main(const int argc, const char* argv[])
 #endif
                 total_time += duration;
                 final_error = slam_sys.error();
-                estimates = slam_sys.currentEstimates();
+                estimates = slam_sys.current_estimates();
             }
             NonlinearFactorGraph::shared_ptr graphNoKernel;
             Values::shared_ptr initial2;
             std::tie(graphNoKernel, initial2) = readG2o(g2oFile, is3D);
-            writeG2o(*graphNoKernel, slam_sys.currentEstimates(), output_file);
+            writeG2o(*graphNoKernel, slam_sys.current_estimates(), output_file);
             string viz_filename = string("viz_ml") + string(".g2o");
-            gtsam::NonlinearFactorGraph curr_graph = slam_sys.getGraph();
-            writeG2oLdmkEdges(curr_graph, slam_sys.currentEstimates(), viz_filename, output_file);
-            slam_sys.getGraph().saveGraph("/home/odinase/prog/C++/da-slam/graph.txt", slam_sys.currentEstimates());
+            gtsam::NonlinearFactorGraph curr_graph = slam_sys.get_graph();
+            writeG2oLdmkEdges(curr_graph, slam_sys.current_estimates(), viz_filename, output_file);
+            slam_sys.get_graph().saveGraph("/home/odinase/prog/C++/da-slam/graph.txt", slam_sys.current_estimates());
         }
     }
-    catch (gtsam::IndeterminantLinearSystemException& indetErr) {  // when run in terminal: tbb::captured_exception
+    catch (const gtsam::IndeterminantLinearSystemException& err) {  // when run in terminal: tbb::captured_exception
         std::cout << "Optimization failed" << std::endl;
-        std::cout << indetErr.what() << std::endl;
+        std::cout << err.what() << std::endl;
         if (argc > 5) {
             string other_msg = "None";
-            saveException(output_file, std::string("ExceptionML.txt"), indetErr.what(), other_msg);
+            saveException(output_file, std::string("ExceptionML.txt"), err.what(), other_msg);
         }
         NonlinearFactorGraph::shared_ptr graphNoKernel;
         Values::shared_ptr initial2;

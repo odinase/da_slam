@@ -7,6 +7,9 @@ add_library(da_slam
     data_association/innovation.cpp
     data_association/assignment_solvers/auction.cpp
     data_association/assignment_solvers/hungarian.cpp
+    data_association/maximum_likelihood.cpp
+    data_association/known_data_association.cpp
+    slam/slam.cpp
 )
 
 target_link_libraries(da_slam PUBLIC
@@ -23,33 +26,33 @@ target_include_directories(da_slam PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-add_executable(slam_g2o_file
-  slam/slam_g2o_file.cpp
+add_executable(main
+  main.cpp
 )
 
-target_link_libraries(slam_g2o_file
+target_link_libraries(main
     da_slam
 )
 
-list(APPEND TARGETS_TO_INSTALL "slam_g2o_file")
+list(APPEND TARGETS_TO_INSTALL "main")
 
 # if(VISUALIZATION_AVAILABLE)
 #     add_subdirectory(visualization)
     
-#     add_executable(slam_g2o_file_visualization
-#       slam/slam_g2o_file_visualization.cpp
+#     add_executable(main_viz
+#       main_viz.cpp
 #     )
 
-#     target_link_libraries(slam_g2o_file_visualization PUBLIC
+#     target_link_libraries(main_viz PUBLIC
 #         da_slam
 #         visualization
 #     )
 
-#     target_compile_definitions(slam_g2o_file_visualization PRIVATE
+#     target_compile_definitions(main_viz PRIVATE
 #         VISUALIZATION_AVAILABLE
 #     )
 
-#     list(APPEND TARGETS_TO_INSTALL "slam_g2o_file_visualization")
+#     list(APPEND TARGETS_TO_INSTALL "main_viz")
 # endif() # VISUALIZATION_AVAILABLE
 
 install(TARGETS ${TARGETS_TO_INSTALL}
