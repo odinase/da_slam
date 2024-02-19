@@ -19,6 +19,7 @@
 #include "da_slam/slam/slam_interface.hpp"
 #include "da_slam/types.hpp"
 #include "da_slam/utils.hpp"
+#include "da_slam/fmt.hpp"
 
 using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;

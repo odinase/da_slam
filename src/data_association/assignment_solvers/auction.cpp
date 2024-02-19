@@ -8,6 +8,19 @@
 namespace da_slam::data_association::assignment_solvers
 {
 
+AuctionParameters::AuctionParameters(const double eps, const uint64_t max_iter) : epsilon(eps), max_iterations(max_iter)
+{
+}
+
+AuctionParameters::AuctionParameters()
+: AuctionParameters(AuctionParameters::DEFAULT_EPSILON, AuctionParameters::DEFAULT_MAX_ITERATIONS)
+{
+}
+
+Auction::Auction(const AuctionParameters& params) : m_eps(params.epsilon), m_max_iter(params.max_iterations)
+{
+}
+
 std::vector<int> Auction::solve(const Eigen::Ref<const Eigen::MatrixXd>& cost_matrix) const
 {
     const auto m = cost_matrix.rows();

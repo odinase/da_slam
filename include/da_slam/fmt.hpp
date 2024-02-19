@@ -60,7 +60,7 @@ struct formatter<gtsam::Symbol> : ostream_formatter
 
 }  // namespace fmt
 
-#endif // DA_SLAM_FMT_HPP
+#endif  // DA_SLAM_FMT_HPP
 
 // #ifndef HYBRID_FG_UTILS_FMT_HPP
 // #define HYBRID_FG_UTILS_FMT_HPP

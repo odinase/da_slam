@@ -1,17 +1,18 @@
+#include "da_slam/data_association/known_data_association.hpp"
+
 #include <gtsam/base/FastMap.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam_unstable/slam/PoseToPointFactor.h>
-#include <da_slam/types.hpp>
 
 #include <algorithm>
 #include <chrono>
+#include <da_slam/types.hpp>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <range/v3/all.hpp>
 #include <utility>
-#include "da_slam/data_association/known_data_association.hpp"
 
 using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;
@@ -22,13 +23,13 @@ namespace da_slam::data_association::ground_truth
 {
 
 template <typename Pose, typename Point>
-hypothesis::Hypothesis KnownDataAssociation<Pose, Point>::associate(const gtsam::Values& estimates,
-                                                        const gtsam::Marginals& /*marginals*/,
-                                                        const gtsam::FastVector<types::Measurement<Point>>& measurements) const
+hypothesis::Hypothesis KnownDataAssociation<Pose, Point>::associate(
+    const gtsam::Values& estimates, const gtsam::Marginals& /*marginals*/,
+    const gtsam::FastVector<types::Measurement<Point>>& measurements) const
 {
     // gtsam::KeyList landmark_keys = estimates.extract(gtsam::Symbol::ChrTest('l')).keys();
-    const auto num_poses = estimates.template extract<Pose>(gtsam::Symbol::ChrTest('x')).size();
-    const auto last_pose = num_poses - 1;  // Assuming first pose is 0
+    const auto pose_num = estimates.template extract<Pose>(gtsam::Symbol::ChrTest('x')).size();
+    const auto last_pose = pose_num - 1;  // Assuming first pose is 0
     const auto x_key = X(last_pose);
     const auto x_pose = estimates.template at<Pose>(x_key);
     // size_t num_measurements = measurements.size();

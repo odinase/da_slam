@@ -10,15 +10,16 @@
 // #include <numeric>
 // #include <vector>
 
-
 // #include "da_slam/data_association/assignment_solvers/assignment_solver_interface.hpp"
 // #include "da_slam/data_association/data_association_interface.hpp"
 // #include "da_slam/data_association/hypothesis.hpp"
-#include "da_slam/slam/utils_g2o.hpp"
 #include <spdlog/spdlog.h>
+
 #include "da_slam/data_association/compatibility.hpp"
+#include "da_slam/slam/utils_g2o.hpp"
 // #include "da_slam/types.hpp"
 
+using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;
 
 namespace da_slam::data_association::maximum_likelihood
@@ -30,8 +31,8 @@ hypothesis::Hypothesis MaximumLikelihood<Pose, Point>::associate(
     const gtsam::FastVector<types::Measurement<Point>>& measurements) const
 {
     const auto landmark_keys = gtsam::findLmKeys(estimates);
-    const auto num_poses = gtsam::num_poses(estimates);
-    const auto last_pose = num_poses - 1;  // Assuming first pose is 0
+    const auto pose_num = gtsam::num_poses(estimates);
+    const auto last_pose = pose_num - 1;  // Assuming first pose is 0
     gtsam::Key x_key = X(last_pose);
     const auto x_pose = estimates.at<Pose>(x_key);
     size_t num_measurements = measurements.size();
@@ -109,7 +110,8 @@ hypothesis::Hypothesis MaximumLikelihood<Pose, Point>::associate(
             gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
             hypothesis::Association a(meas_idx, l, Hx, Hl, error);
             double log_norm_factor;
-            double mh_dist = compatibility::individual_compatibility(a, x_key, joint_marginals, measurements, log_norm_factor);
+            double mh_dist =
+                compatibility::individual_compatibility(a, x_key, joint_marginals, measurements, log_norm_factor);
 
             double mle_cost = mh_dist + log_norm_factor;
 

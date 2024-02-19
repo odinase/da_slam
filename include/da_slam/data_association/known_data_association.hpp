@@ -42,6 +42,6 @@ class KnownDataAssociation : public IDataAssociation<types::Measurement<Point>>
 using KnownDataAssociation2D = KnownDataAssociation<gtsam::Pose2, gtsam::Point2>;
 using KnownDataAssociation3D = KnownDataAssociation<gtsam::Pose3, gtsam::Point3>;
 
-}  // namespace da_slam::data_association
+}  // namespace da_slam::data_association::ground_truth
 
-#endif // DA_SLAM_DATA_ASSOCIATION_KNOWN_DATA_ASSOCIATION_HPP
+#endif  // DA_SLAM_DATA_ASSOCIATION_KNOWN_DATA_ASSOCIATION_HPP

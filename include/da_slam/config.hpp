@@ -5,8 +5,8 @@
 
 #include <string>
 
-#include "da_slam/data_association/data_association_interface.hpp"
 #include "da_slam/data_association/assignment_solvers/assignment_solver_interface.hpp"
+#include "da_slam/data_association/data_association_interface.hpp"
 #include "da_slam/slam/slam.hpp"
 
 namespace da_slam::config

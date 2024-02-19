@@ -10,7 +10,10 @@ add_library(da_slam
     data_association/assignment_solvers/hungarian.cpp
     data_association/maximum_likelihood.cpp
     data_association/known_data_association.cpp
+    data_association/assignment_solvers/auction.cpp
+    data_association/assignment_solvers/hungarian.cpp
     slam/slam.cpp
+    slam/utils_g2o.cpp
 )
 
 target_link_libraries(da_slam PUBLIC

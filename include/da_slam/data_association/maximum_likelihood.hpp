@@ -52,4 +52,4 @@ using MaximumLikelihood3D = MaximumLikelihood<gtsam::Pose3, gtsam::Point3>;
 
 }  // namespace da_slam::data_association::maximum_likelihood
 
-#endif // DA_SLAM_DATA_ASSOCIATION_MAXIMUM_LIKELIHOOD_HPP
+#endif  // DA_SLAM_DATA_ASSOCIATION_MAXIMUM_LIKELIHOOD_HPP

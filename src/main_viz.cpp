@@ -130,8 +130,8 @@ void save_hypothesis(const da::hypothesis::Hypothesis& hyp, const gtsam::Nonline
     gtsam::JointMarginal joint_marginal;
     gtsam::Key x_key;
     if (num_assos > 0) {
-        const auto num_poses = gtsam::num_poses(hyp_estimates);
-        int last_pose = num_poses - 1;  // Assuming first pose is 0
+        const auto pose_num = gtsam::num_poses(hyp_estimates);
+        int last_pose = pose_num - 1;  // Assuming first pose is 0
         x_key = X(last_pose);
         gtsam::KeyVector keys = hyp.associated_landmarks();
         keys.push_back(x_key);

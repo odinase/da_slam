@@ -20,8 +20,8 @@ Config::Config(const char* filename)
                              data_association_yaml["method"].as<std::string>(), magic_enum::case_insensitive)
                              .value();
     assignment_solver = magic_enum::enum_cast<data_association::assignment_solvers::AssignmentSolver>(
-                             data_association_yaml["assignment_solver"].as<std::string>(), magic_enum::case_insensitive)
-                             .value();
+                            data_association_yaml["assignment_solver"].as<std::string>(), magic_enum::case_insensitive)
+                            .value();
 
     // Optimization
 
@@ -31,9 +31,10 @@ Config::Config(const char* filename)
                                                                           magic_enum::case_insensitive)
                               .value();
 
-    marginals_factorization = magic_enum::enum_cast<gtsam::Marginals::Factorization>(
-                                  optimization_yaml["marginals_factorization"].as<std::string>(), magic_enum::case_insensitive)
-                                  .value();
+    marginals_factorization =
+        magic_enum::enum_cast<gtsam::Marginals::Factorization>(
+            optimization_yaml["marginals_factorization"].as<std::string>(), magic_enum::case_insensitive)
+            .value();
 
     // Visualization
 

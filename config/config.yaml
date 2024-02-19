@@ -1,6 +1,6 @@
 data_association:
   method: MAXIMUM_LIKELIHOOD
-  assignment_solver: AUCTION
+  assignment_solver: HUNGARIAN
 
 optimization:
   method: GAUSS_NEWTON
