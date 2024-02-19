@@ -401,10 +401,10 @@ void writeG2oLdmkEdges(const NonlinearFactorGraph& graph, const Values& estimate
 
 }  // namespace gtsam
 
-template <class POSE, class POINT>
-std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
-    std::vector<std::shared_ptr<gtsam::BetweenFactor<POSE>>>& odomFactors,
-    std::vector<std::shared_ptr<gtsam::PoseToPointFactor<POSE, POINT>>>& measFactors)
+template <typename Pose, typename Point>
+std::vector<da_slam::types::Timestep<Pose, Point>> convert_into_timesteps(
+    std::vector<std::shared_ptr<gtsam::BetweenFactor<Pose>>>& odomFactors,
+    std::vector<std::shared_ptr<gtsam::PoseToPointFactor<Pose, Point>>>& measFactors)
 {
     // Sort factors based on robot pose key, so that we can simply check when in time they should appear
     std::sort(odomFactors.begin(), odomFactors.end(), [](const auto& lhs, const auto& rhs) {
@@ -417,12 +417,12 @@ std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
     size_t odoms = odomFactors.size();
     uint64_t num_timesteps =
         odoms + 1;  // There will always be one more robot pose than odometry factors since they're all between
-    std::vector<slam::Timestep<POSE, POINT>> timesteps;
+    std::vector<da_slam::types::Timestep<Pose, Point>> timesteps{};
     uint64_t curr_measurement = 0;
     size_t tot_num_measurements = measFactors.size();
     timesteps.reserve(num_timesteps);
     for (uint64_t t = 0; t < num_timesteps; t++) {
-        slam::Timestep<POSE, POINT> timestep;
+        da_slam::types::Timestep<Pose, Point> timestep{};
         timestep.step = t;
         // Initialize first odom as identity, as we haven't moved yet
         if (t > 0) {
@@ -430,13 +430,13 @@ std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
             timestep.odom.noise = odomFactors[t - 1]->noiseModel();
         }
         else {
-            timestep.odom.odom = POSE();
+            timestep.odom.odom = Pose{};
         }
 
         // Extract measurements from current pose
         while (curr_measurement < tot_num_measurements &&
                gtsam::symbolIndex(measFactors[curr_measurement]->key1()) == t) {
-            slam::Measurement<POINT> meas;
+            da_slam::types::Measurement<Point> meas{};
             meas.idx = curr_measurement;
             meas.measurement = measFactors[curr_measurement]->measured();
             meas.noise = measFactors[curr_measurement]->noiseModel();
@@ -450,10 +450,10 @@ std::vector<slam::Timestep<POSE, POINT>> convert_into_timesteps(
     return timesteps;
 }
 
-template <class POSE, class POINT>
+template <typename Pose, typename Point>
 std::map<uint64_t, gtsam::Key> measurement_landmarks_associations(
-    const std::vector<std::shared_ptr<gtsam::PoseToPointFactor<POSE, POINT>>>& measFactors,
-    const std::vector<slam::Timestep<POSE, POINT>>& timesteps)
+    const std::vector<std::shared_ptr<gtsam::PoseToPointFactor<Pose, Point>>>& measFactors,
+    const std::vector<da_slam::types::Timestep<Pose, Point>>& timesteps)
 {
     std::map<uint64_t, gtsam::Key> meas_lmk_assos;
     for (const auto& timestep : timesteps) {

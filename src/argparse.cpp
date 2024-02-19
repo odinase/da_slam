@@ -21,14 +21,14 @@ ParsedArgs parse_args(const int argc, const char* argv[])
         .add_argument("ic_prob")                                                                                    //
         .help("individual compatibility probability to use for maximum likelihood. Determines the chi2 thresold.")  //
         .default_value(0.99)
-        .scan<'d', double>();
+        .scan<'g', double>();
 
     argparser
         .add_argument("range_threshold")  //
         .help(
             "Heuristic distance to determine whether a landmark and measurement can be associated with each other.")  //
         .default_value(1e9)
-        .scan<'d', double>();
+        .scan<'g', double>();
 
     argparser
         .add_argument("output_file")  //

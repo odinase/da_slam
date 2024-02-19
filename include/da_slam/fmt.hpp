@@ -5,13 +5,48 @@
 #include <fmt/ostream.h>
 #include <fmt/ranges.h>
 #include <gtsam/inference/Symbol.h>
-#include <spdlog/spdlog.h>
 
 #include <Eigen/Core>
 #include <iostream>
 
 namespace fmt
 {
+
+// template <typename Derived>
+// struct formatter<Eigen::EigenBase<Derived>> : formatter<std::string_view>
+// {
+//     auto format(Eigen::EigenBase<Derived>&& m, format_context& ctx) const
+//     {
+//         const std::stringstream ss{};
+//         ss << m;
+//         const std::string s = ss.str();
+//         return formatter<std::string_view>::format(s, ctx);
+//     }
+// };
+
+// template <>
+// struct fmt::formatter<gtsam::Symbol>
+// {
+//     // Parses format specifications of the form ['f' | 'e'], which are not used in this example
+//     constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin())
+//     {
+//         // No format specifiers to parse, so return the end of the range.
+//         auto it = ctx.begin(), end = ctx.end();
+//         // Check if there are any characters in the format string; we don't expect any.
+//         if (it != end && *it != '}') {
+//             throw fmt::format_error("invalid format");
+//         }
+//         return it;
+//     }
+
+//     template <typename FormatContext>
+//     auto format(const gtsam::Symbol& symbol, FormatContext& ctx) -> decltype(ctx.out())
+//     {
+//         std::ostringstream oss;
+//         oss << symbol;  // Use the ostream implementation of gtsam::Symbol
+//         return format_to(ctx.out(), "{}", oss.str());
+//     }
+// };
 
 template <typename Derived>
 struct formatter<Eigen::MatrixBase<Derived>> : ostream_formatter

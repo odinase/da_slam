@@ -13,7 +13,6 @@
 #include "da_slam/data_association/assignment_solvers/assignment_solver_interface.hpp"
 #include "da_slam/data_association/data_association_interface.hpp"
 #include "da_slam/data_association/hypothesis.hpp"
-#include "da_slam/slam/utils_g2o.hpp"
 #include "da_slam/types.hpp"
 
 namespace da_slam::data_association::maximum_likelihood

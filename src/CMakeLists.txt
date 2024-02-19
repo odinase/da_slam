@@ -2,6 +2,7 @@ set(TARGETS_TO_INSTALL "")
 
 add_library(da_slam
     config.cpp
+    argparse.cpp
     data_association/hypothesis.cpp
     data_association/compatibility.cpp
     data_association/innovation.cpp
@@ -18,6 +19,7 @@ target_link_libraries(da_slam PUBLIC
     range-v3::range-v3
     Eigen3::Eigen
     spdlog::spdlog
+    fmt::fmt
     magic_enum::magic_enum    
 )
 

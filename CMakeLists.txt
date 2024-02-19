@@ -15,6 +15,7 @@ find_package(range-v3 REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
 find_package(argparse REQUIRED)
+find_package(fmt REQUIRED)
 
 include(cmake/AddOptions.cmake)
 

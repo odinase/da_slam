@@ -1,21 +1,23 @@
 #include "da_slam/data_association/maximum_likelihood.hpp"
 
-#include <gtsam/base/FastVector.h>
-#include <gtsam/geometry/Pose3.h>
+// #include <gtsam/base/FastVector.h>
+// #include <gtsam/geometry/Pose3.h>
 
-#include <Eigen/Core>
-#include <da_slam/fmt.hpp>
-#include <iostream>
-#include <limits>
-#include <numeric>
-#include <vector>
+// #include <Eigen/Core>
+// #include <da_slam/fmt.hpp>
+// #include <iostream>
+// #include <limits>
+// #include <numeric>
+// #include <vector>
 
 
-#include "da_slam/data_association/assignment_solvers/assignment_solver_interface.hpp"
-#include "da_slam/data_association/data_association_interface.hpp"
-#include "da_slam/data_association/hypothesis.hpp"
+// #include "da_slam/data_association/assignment_solvers/assignment_solver_interface.hpp"
+// #include "da_slam/data_association/data_association_interface.hpp"
+// #include "da_slam/data_association/hypothesis.hpp"
 #include "da_slam/slam/utils_g2o.hpp"
-#include "da_slam/types.hpp"
+#include <spdlog/spdlog.h>
+#include "da_slam/data_association/compatibility.hpp"
+// #include "da_slam/types.hpp"
 
 using gtsam::symbol_shorthand::X;
 
@@ -29,7 +31,7 @@ hypothesis::Hypothesis MaximumLikelihood<Pose, Point>::associate(
 {
     const auto landmark_keys = gtsam::findLmKeys(estimates);
     const auto num_poses = gtsam::num_poses(estimates);
-    int last_pose = num_poses - 1;  // Assuming first pose is 0
+    const auto last_pose = num_poses - 1;  // Assuming first pose is 0
     gtsam::Key x_key = X(last_pose);
     const auto x_pose = estimates.at<Pose>(x_key);
     size_t num_measurements = measurements.size();
@@ -107,7 +109,7 @@ hypothesis::Hypothesis MaximumLikelihood<Pose, Point>::associate(
             gtsam::Vector error = factor.evaluateError(x_pose, lmk, Hx, Hl);
             hypothesis::Association a(meas_idx, l, Hx, Hl, error);
             double log_norm_factor;
-            double mh_dist = individual_compatability(a, x_key, joint_marginals, measurements, log_norm_factor);
+            double mh_dist = compatibility::individual_compatibility(a, x_key, joint_marginals, measurements, log_norm_factor);
 
             double mle_cost = mh_dist + log_norm_factor;
 
@@ -167,7 +169,7 @@ hypothesis::Hypothesis MaximumLikelihood<Pose, Point>::associate(
         begin = std::chrono::steady_clock::now();
 #endif
 
-        std::vector<int> associated_measurements = hungarian(cost_matrix);
+        std::vector<int> associated_measurements = m_assignment_solver->solve(cost_matrix);
 
 #ifdef PROFILING
         end = std::chrono::steady_clock::now();
