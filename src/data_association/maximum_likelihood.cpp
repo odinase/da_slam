@@ -18,6 +18,7 @@
 #include "da_slam/data_association/compatibility.hpp"
 #include "da_slam/slam/utils_g2o.hpp"
 // #include "da_slam/types.hpp"
+#include "da_slam/fmt.hpp"
 
 using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;

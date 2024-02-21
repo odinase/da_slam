@@ -13,6 +13,7 @@
 #include <memory>
 #include <range/v3/all.hpp>
 #include <utility>
+#include "da_slam/fmt.hpp"
 
 using gtsam::symbol_shorthand::L;
 using gtsam::symbol_shorthand::X;
