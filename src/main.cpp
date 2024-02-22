@@ -27,10 +27,11 @@ namespace fs = std::filesystem;
 
 int main(const int argc, const char* argv[])
 {
+    //  Load in data from command line. Should be in config
     const auto [g2oFile, is3D, ic_prob, range_threshold, output_file] = da_slam::argparse::parse_args(argc, argv);
 
     const auto yaml_path = fs::current_path() / "config" / "config.yaml";
-    const da_slam::config::Config conf(yaml_path);
+    const auto conf = da_slam::config::Config{yaml_path};
 
     const da_slam::slam::OptimizationMethod optimization_method = conf.optimization_method;
     const gtsam::Marginals::Factorization marginals_factorization = conf.marginals_factorization;
@@ -111,7 +112,7 @@ int main(const int argc, const char* argv[])
                 slam_sys.process_timestep(timestep);
                 end_t = std::chrono::high_resolution_clock::now();
                 double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_t - start_t).count() * 1e-9;
-spdlog::info("Processed timestep {}, {}%% complete", timestep.step, static_cast<double>(timestep.step + 1) / tot_timesteps * 100.0);
+                spdlog::info("Processed timestep {}, {}%% complete", timestep.step, static_cast<double>(timestep.step + 1) / tot_timesteps * 100.0);
                 total_time += duration;
                 final_error = slam_sys.error();
                 estimates = slam_sys.current_estimates();
